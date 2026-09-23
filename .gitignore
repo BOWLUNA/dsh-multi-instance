@@ -4,11 +4,23 @@ node_modules/
 # 构建产物
 dist/
 out/
+release/
 
 # 本地临时
 .tmp/
 *.log
+npm-debug.log*
 .DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
 
 # 本项目的工作流笔记（私有，不发布）
 .workbuddy/
+
+# 本地跑测试时留下的截图 / 含个人信息的旧图（不发布）
+/docs/_local/
+/docs/_local-old-shots/

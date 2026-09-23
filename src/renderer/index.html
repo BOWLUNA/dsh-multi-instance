@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-src http: https:; connect-src 'self'"
+  />
+  <title>DSH 套壳</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- ============ 常驻标题栏（20px）
+         必须给窗口按钮一块真空间：只要它浮在画布上，就必然和 DSH 自己的
+         顶栏按钮抢位置（实测两者纵向完全重叠）。所以画布整体下移 20px。 ============ -->
+    <div id="titlebar" class="titlebar">
+      <button class="tb-icon" id="btnTopCtl"></button>
+      <button class="tb-icon tb-icon-accent" id="btnTitleAdd"></button>
+      <span class="titlebar-name">DSH Multi-Instance</span>
+      <div class="titlebar-drag"></div>
+      <button class="wctrl" id="btnWinMin"></button>
+      <button class="wctrl" id="btnWinMax"></button>
+      <button class="wctrl wctrl-close" id="btnWinClose"></button>
+    </div>
+
+    <!-- ============ 上侧抽屉（隐藏式，位置在标题栏之下） ============ -->
+    <header id="topbar" class="topbar">
+      <div class="tb-left">
+        <button class="tb-btn" id="btnSidebar"></button>
+      </div>
+
+      <div class="tb-center">
+        <input id="addrBar" class="addr" spellcheck="false" autocomplete="off" />
+        <button class="tb-btn" id="btnGo"></button>
+        <button class="tb-btn" id="btnReload"></button>
+      </div>
+
+      <div class="tb-right">
+        <button class="tb-btn" id="btnTile"></button>
+        <button class="tb-btn tb-btn-accent" id="btnAddInst"></button>
+        <span class="tb-sep"></span>
+        <button class="tb-btn" id="btnPin"></button>
+      </div>
+    </header>
+
+    <!-- ============ 左侧热区 ============ -->
+    <div id="leftReveal" class="reveal reveal-left"></div>
+
+    <!-- ============ 左侧抽屉 ============ -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sb-head">
+        <span class="sb-title" data-i18n="side.instances"></span>
+        <button class="iconbtn" id="btnSidePin"></button>
+        <button class="iconbtn" id="btnSideClose"></button>
+      </div>
+
+      <!-- 三个功能按钮：一行、圆角长方形、克制大小 -->
+      <div class="sb-actions">
+        <button class="sb-act sb-act-accent" id="btnNewInst"></button>
+        <button class="sb-act" id="btnDetect"></button>
+        <button class="sb-act" id="btnInstall"></button>
+      </div>
+
+      <div class="sb-list" id="instList"></div>
+
+      <div class="sb-foot">
+        <button class="footbtn" id="btnTheme"></button>
+        <button class="footbtn" id="btnLang"></button>
+        <span class="sb-ver" id="verLabel"></span>
+      </div>
+
+      <!-- ---------- 二级页：实例设置 ---------- -->
+      <div id="pageEdit" class="page">
+        <div class="page-head">
+          <span class="page-title" id="editTitle"></span>
+          <button class="iconbtn" id="editClose"></button>
+        </div>
+
+        <div class="page-body">
+          <label class="field">
+            <span class="field-label" data-i18n="edit.name"></span>
+            <input type="text" id="fName" data-i18n-ph="edit.namePh" />
+          </label>
+
+          <label class="field">
+            <span class="field-label" data-i18n="edit.kind"></span>
+            <select id="fKind">
+              <option value="wsl" data-i18n="edit.kindLocal"></option>
+              <option value="windows">Windows</option>
+              <option value="remote" data-i18n="edit.kindRemote"></option>
+            </select>
+          </label>
+
+          <div class="row2">
+            <label class="field">
+              <span class="field-label" data-i18n="edit.host"></span>
+              <input type="text" id="fHost" class="mono" />
+            </label>
+            <label class="field narrow">
+              <span class="field-label" data-i18n="edit.port"></span>
+              <input type="number" id="fPort" min="1" max="65535" />
+            </label>
+          </div>
+          <div class="field-hint" data-i18n="edit.portHint"></div>
+
+          <label class="field" id="rowUrl">
+            <span class="field-label">URL</span>
+            <input type="text" id="fUrl" class="mono" placeholder="https://dsh.example.com/" />
+          </label>
+
+          <label class="field" id="rowToken">
+            <span class="field-label" data-i18n="edit.token"></span>
+            <input type="text" id="fToken" class="mono" data-i18n-ph="edit.tokenPh" />
+          </label>
+
+          <div class="row2" id="rowWsl">
+            <label class="field">
+              <span class="field-label">WSL 发行版</span>
+              <input type="text" id="fDistro" class="mono" placeholder="Ubuntu" />
+            </label>
+            <label class="field">
+              <span class="field-label">WSL 用户</span>
+              <input type="text" id="fWslUser" class="mono" placeholder="（默认用户）" />
+            </label>
+          </div>
+
+          <label class="field" id="rowUrlFile">
+            <span class="field-label" data-i18n="edit.urlFile"></span>
+            <input type="text" id="fUrlFile" class="mono" />
+          </label>
+
+          <label class="field">
+            <span class="field-label" data-i18n="edit.launcher"></span>
+            <input type="text" id="fLauncher" class="mono" placeholder="dsh web --no-open --port {port}" />
+            <span class="field-hint" data-i18n="edit.launcherHint"></span>
+          </label>
+
+          <div class="switchrow" id="rowAutostart">
+            <div class="switchrow-main">
+              <div class="switchrow-title" data-i18n="edit.autostart"></div>
+              <div class="field-hint" data-i18n="edit.autostartHint"></div>
+            </div>
+            <span class="switch" id="swAutostart"></span>
+          </div>
+        </div>
+
+        <div class="page-acts">
+          <button class="btn" id="editDelete"></button>
+          <button class="btn" id="editTest"></button>
+          <button class="btn primary" id="editSave"></button>
+        </div>
+      </div>
+
+      <!-- ---------- 二级页：安装 DSH ---------- -->
+      <div id="pageInstall" class="page">
+        <div class="page-head">
+          <span class="page-title" data-i18n="install.title"></span>
+          <button class="iconbtn" id="installClose"></button>
+        </div>
+
+        <div class="page-body">
+          <div class="field-hint" data-i18n="install.notice"></div>
+
+          <label class="field">
+            <span class="field-label" data-i18n="install.target"></span>
+            <select id="iTarget">
+              <option value="wsl" data-i18n="install.targetWsl"></option>
+              <option value="windows" data-i18n="install.targetWin"></option>
+            </select>
+          </label>
+
+          <label class="field" id="rowIDistro">
+            <span class="field-label" data-i18n="install.distro"></span>
+            <input type="text" id="iDistro" class="mono" placeholder="Ubuntu" />
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span class="field-label" data-i18n="install.version"></span>
+              <div class="row-with-btn">
+                <select id="iVersion"></select>
+                <button class="btn" id="iLoadVer"></button>
+              </div>
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field-label" data-i18n="install.port"></span>
+            <input type="number" id="iPort" class="mono" min="1024" max="65535" step="1" />
+            <div class="field-hint" data-i18n="install.portHint"></div>
+          </label>
+
+          <div class="field">
+            <span class="field-label" data-i18n="install.dir"></span>
+            <div class="row-with-btn">
+              <input type="text" id="iDir" class="mono" />
+              <button class="btn" id="iPick"></button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span class="field-label" data-i18n="install.registry"></span>
+            <select id="iRegistry">
+              <option value="https://registry.npmjs.org/" data-i18n="install.regOfficial"></option>
+              <option value="https://repo.huaweicloud.com/repository/npm/" data-i18n="install.regHuawei"></option>
+              <option value="https://registry.npmmirror.com/" data-i18n="install.regTaobao"></option>
+              <option value="https://mirrors.cloud.tencent.com/npm/" data-i18n="install.regTencent"></option>
+              <option value="__custom" data-i18n="install.regCustom"></option>
+            </select>
+            <input type="text" id="iRegistryCustom" class="mono" hidden />
+            <div class="field-hint" data-i18n="install.registryHint"></div>
+          </label>
+
+          <div class="field">
+            <span class="field-label" data-i18n="install.env"></span>
+            <div class="field-hint" id="iEnv">—</div>
+          </div>
+
+          <div class="field">
+            <span class="field-label" data-i18n="install.progress"></span>
+            <div class="install-log" id="iLog"></div>
+          </div>
+        </div>
+
+        <div class="page-acts">
+          <button class="btn" id="iCheck"></button>
+          <button class="btn primary" id="iStart"></button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============ 画布 ============ -->
+    <main id="stage" class="stage"></main>
+
+    <div id="emptyState" class="empty-state" hidden>
+      <div class="es-title" data-i18n="empty.title"></div>
+      <div class="es-sub" data-i18n="empty.sub"></div>
+    </div>
+
+    <!-- ============ 悬停气泡（单例复用） ============ -->
+    <div id="bubble" class="bubble">
+      <span class="bubble-name" id="bubbleName"></span>
+      <span class="bubble-sep"></span>
+      <button class="bubble-btn" id="bbMin"></button>
+      <button class="bubble-btn" id="bbFill"></button>
+      <span class="bubble-sep"></span>
+      <button class="bubble-btn" id="bbZ2"></button>
+      <button class="bubble-btn" id="bbZ3"></button>
+      <button class="bubble-btn" id="bbZ4"></button>
+    </div>
+
+    <!-- ============ 分区层 ============ -->
+    <div id="zones" class="zones" hidden></div>
+
+    <!-- ============ 遮罩 / 辅助线 / 提示 ============ -->
+    <div id="shield" class="shield" hidden></div>
+    <div id="guides" class="guides"></div>
+    <div id="toast" class="toast" hidden></div>
+    <div id="menu" class="menu" hidden></div>
+
+    <!-- ============ 发现弹窗 ============ -->
+    <div id="discover" class="discover" hidden>
+      <div class="discover-head">
+        <span class="ico" id="discIcon"></span>
+        <span class="discover-title" data-i18n="disc.title"></span>
+      </div>
+      <div class="discover-desc" id="discDesc"></div>
+      <div class="discover-list" id="discList"></div>
+      <div class="discover-scope" id="discScope"></div>
+      <div class="discover-acts">
+        <button class="btn" id="discIgnore"></button>
+        <button class="btn primary" id="discAdd"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="icons.js"></script>
+  <script src="i18n.js"></script>
+  <script src="layout.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
