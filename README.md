@@ -1,9 +1,10 @@
-# dsh-webview-desktop
+# dsh-multi-instance
 
 [English](README.en.md) | **简体中文**
 
 把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）的 Web 界面装进一个桌面壳：
-**按 URL 接入任意多个 DSH 实例，多窗格自由排布，每格独立会话。**
+**多开任意多个 DSH 实例** —— 本机、WSL2、或服务器上只有 URL 的远程实例都能接。
+每个实例各占一个窗格，**多窗口**自由排布与缩放；**多实例**之间互不干扰，每格有自己的浏览器会话。
 
 它不是浏览器插件，也不是对 dsh 的重实现 —— 就是给 `dsh web` 已经提供的那套页面，套一层窗口管理外壳。
 
@@ -114,8 +115,8 @@ cookie 互相覆盖、排布全靠手拉。
 需要 Node.js 与 npm。
 
 ```bash
-git clone https://github.com/BOWLUNA/dsh-webview-desktop.git
-cd dsh-webview-desktop
+git clone https://github.com/BOWLUNA/dsh-multi-instance.git
+cd dsh-multi-instance
 npm install          # 只装 electron
 ```
 
