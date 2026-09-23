@@ -1,9 +1,10 @@
-# dsh-webview-desktop
+# dsh-multi-instance
 
 **English** | [简体中文](README.md)
 
 A desktop shell that wraps the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) web UI:
-**attach to any number of DSH instances by URL, arrange panes freely, and give each pane its own isolated session.**
+**multi-instance panes that attach to any number of DSH instances by URL** — local, WSL2, or a remote server.
+Multi-window layout with free arrange and resize; one isolated browser session per pane.
 
 It is not a browser extension and not a reimplementation of dsh — it is a window-management shell around the pages `dsh web` already serves.
 
@@ -114,8 +115,8 @@ because `<webview>` otherwise swallows all keyboard events.
 Node.js and npm are required.
 
 ```bash
-git clone https://github.com/BOWLUNA/dsh-webview-desktop.git
-cd dsh-webview-desktop
+git clone https://github.com/BOWLUNA/dsh-multi-instance.git
+cd dsh-multi-instance
 npm install          # installs electron only
 ```
 
