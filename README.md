@@ -2,8 +2,8 @@
 
 [English](README.en.md) | **简体中文**
 
-把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）的 Web 界面装进一个桌面壳：
-**多开任意多个 DSH 实例** —— 本机、WSL2、或服务器上只有 URL 的远程实例都能接。
+把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）的 Web 界面装进一个桌面客户端：
+**多开多个实例** —— 本机、WSL2、或服务器上只有 URL 的远程 DSH 都能接。
 每个实例各占一个窗格，**多窗口**自由排布与缩放；**多实例**之间互不干扰，每格有自己的浏览器会话。
 
 它不是浏览器插件，也不是对 dsh 的重实现 —— 就是给 `dsh web` 已经提供的那套页面，套一层窗口管理外壳。
