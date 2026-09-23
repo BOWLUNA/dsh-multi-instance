@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.md)
 
-A desktop shell that wraps the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) web UI:
+A desktop client that wraps the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) web UI:
 **multi-instance panes that attach to any number of DSH instances by URL** — local, WSL2, or a remote server.
 Multi-window layout with free arrange and resize; one isolated browser session per pane.
 
