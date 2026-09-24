@@ -6,7 +6,7 @@
 
 <!-- 徽章行：与 dsh-custom-mode 同一套配色（深色标签 + 彩色值） -->
 <!-- 版本以 GitHub Release 为准：npm 上目前只有占位包，所以 npm 徽章排在后面并写明 placeholder -->
-[![release](https://img.shields.io/github/v/release/BOWLUNA/dsh-multi-instance?label=release&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20WSL2-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![tests](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-multi-instance/ci.yml?label=tests&style=flat-square&labelColor=1f2430&logo=githubactions&logoColor=white)](https://github.com/BOWLUNA/dsh-multi-instance/actions/workflows/ci.yml) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![electron](https://img.shields.io/badge/electron-40-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1f2430)](https://www.electronjs.org/) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/deepseek-ai/deepseek-harness) [![npm](https://img.shields.io/npm/v/dsh-multi-instance?label=npm%20(placeholder)&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance)
+[![release](https://img.shields.io/github/v/release/BOWLUNA/dsh-multi-instance?label=release&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20WSL2-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![tests](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-multi-instance/ci.yml?label=tests&style=flat-square&labelColor=1f2430&logo=githubactions&logoColor=white)](https://github.com/BOWLUNA/dsh-multi-instance/actions/workflows/ci.yml) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![electron](https://img.shields.io/badge/electron-44-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1f2430)](https://www.electronjs.org/) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/deepseek-ai/deepseek-harness) [![npm](https://img.shields.io/npm/v/dsh-multi-instance?label=npm%20(placeholder)&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance)
 
 <!-- 社区行 -->
 [![bilibili](https://img.shields.io/badge/bilibili-videos-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white&labelColor=1f2430)](https://b23.tv/qJ4Ev0W) [![Douyin](https://img.shields.io/badge/Douyin-shorts-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white&labelColor=1f2430)](https://v.douyin.com/VWh0M03Fa4Y/) [![RedNote](https://img.shields.io/badge/RedNote-notes-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white&labelColor=1f2430)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-chat-%235865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1f2430)](https://discord.gg/pz97SfAfSy) [![GitHub](https://img.shields.io/github/discussions/BOWLUNA/dsh-multi-instance?label=GitHub&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/discussions)
@@ -125,7 +125,8 @@ npm start
 
 > ⚠️ 启动器里有一行 `unset ELECTRON_RUN_AS_NODE` / `set "ELECTRON_RUN_AS_NODE="`，**不要删**。
 > 这个变量残留为 `1` 时（Electron 系工具的子进程会继承），`electron.exe` 会退化成纯 Node，
-> 现象是「双击后毫无反应」。判据：`electron.exe --version` 输出 `v24.15.0` 就是中了，正常应输出 `v40.10.2`。
+> 现象是「双击后毫无反应」。判据：`electron.exe --version` 输出的是 **Node 版本号**
+> （`v24.21.0` 这类）就是中了；正常应输出 **Electron 版本** `v44.4.3`。
 
 ---
 
@@ -299,15 +300,30 @@ npm install          # 只装 electron 与 electron-builder
 ### 测试
 
 ```bash
-npm test              # 纯 Node，不需要图形界面、不需要 Electron
+npm test              # 57 条：纯 Node，不需要图形界面、不需要 Electron
+npm run smoke         # 30 条：起一次真应用，看网页有没有真的被渲染出来
 ```
 
-覆盖的是**纯逻辑**：用户数据落点与迁移、配置的读写/备份/损坏恢复、实例地址解析、
+`npm test` 覆盖的是**纯逻辑**：用户数据落点与迁移、配置的读写/备份/损坏恢复、实例地址解析、
 npm 入口的参数解析与运行时查找。零依赖、纯 Node，不需要装任何东西。
-窗口行为、渲染层交互那些仍然只能靠 `--selftest*`（它们要起真窗口，没 GUI 就跑不了）。
 
-> 为什么要分开：`--selftest*` 在没有图形界面的环境（CI、SSH、容器）里一条都跑不了，
-> 于是「改完有没有改坏」只能靠肉眼 —— 这个项目就是因此漏过一次**用户配置被静默丢弃**的缺陷。
+`npm run smoke` 补的是上面测不到的那一半 —— **窗口里的东西**。它自己在本机起一个「假 DSH」页面，
+再用一套测试配置起一次真应用，断言点落在「那个页面**确实被请求了**」上：
+渲染层 boot、窗口显示、webview 挂载与加载、每格独立 partition、窗格发出的 UA、截图非空白、退出码。
+不需要网络、不需要真的 DSH、不需要任何凭据，也不碰你真实的配置（userData 指向临时目录）。
+
+```bash
+npm run smoke                    # 默认：一个窗格
+node tools/smoke.js --scene=tile # 4 个窗格平铺
+node tools/smoke.js --scene=empty# 空画布的引导态
+node tools/smoke.js --keep       # 失败也保留现场（.tmp/smoke）供事后翻看
+```
+
+> 这条测试是被一件事逼出来的：0.5.0 之前，每个窗格的**分区加固整段是死代码**
+> —— `will-attach-webview` 被注册在了错误的对象上（详见 [更新日志](CHANGELOG.md) 的 0.5.0）。
+> 57 条纯逻辑测试全绿，而缺陷就在窗口里躺着；`npm run smoke` 一跑，两条断言当场变红。
+
+交互类的自测（拖拽、气泡、侧栏自动收）仍然走 `--selftest*` 那一套，它们要真窗口 + 合成鼠标事件。
 
 ### 从源码打包
 
@@ -371,7 +387,9 @@ npm run dist:zip      # 只出 zip
 应用数据目录在 Windows 上是 `%APPDATA%\dsh-multi-instance\`（开发态与打包版**同一个位置**）。
 
 **配置是怎么被保护的**（改坏过的人会关心这个）：每次覆盖 `config.json` 之前，先把**上一位能解析的**内容
-滚成 `bak-1`（旧的往后推，只留 3 份）；读不出来时，先把手上的残片原样存成 `config.json.corrupt-<时间戳>`，
+滚成 `bak-1`（旧的往后推，只留 3 份）。同一串写入只占一个槽 —— 一次操作会连写好几笔
+（`panes` / `ui` / `collapsed`），3 秒内不再重复轮转，所以 **3 份备份对应的是最近 3 次操作，
+而不是最近 3 次写盘**。读不出来时，先把手上的残片原样存成 `config.json.corrupt-<时间戳>`，
 再从最近的备份回退，并把回退结果**写回主文件**。日志里会写明发生了什么：
 
 ```
@@ -440,7 +458,7 @@ tail -f "<应用数据目录>/logs/main.log"
 （0.2.0 及更早版本存在落点漂移：开发态与打包版会写到不同目录。日志里 `userData=` 那行是权威答案。）
 
 **0.4.0 起，配置自己会留备份**：目录里出现 `config.json.bak-1` / `bak-2` / `bak-3` 是正常的
-（每写一次往前滚一位），出现 `config.json.corrupt-<时间戳>` 说明读到过一次坏内容 ——
+（每次操作往前滚一位，同一串写入只占一个槽），出现 `config.json.corrupt-<时间戳>` 说明读到过一次坏内容 ——
 那一份是**原样保留的残片**，先别删。日志里会有对应两行，`bak-1` 通常就是你要回的那一版：
 关掉应用，把 `config.json.bak-1` 复制成 `config.json`，再启动。
 
@@ -472,8 +490,10 @@ tail -f "<应用数据目录>/logs/main.log"
 ├── bin/cli.js                           npm 包的可执行入口（--version / --help + 找 electron 并拉起应用）
 ├── build/icon.ico                       应用图标
 ├── start.cmd / start.vbs / start.sh     启动器（三选一）
-├── tests/run.js                         纯 Node 测试套件（npm test）
+├── tests/run.js                         纯 Node 测试套件（npm test，57 条纯逻辑）
+├── tools/smoke.js                       窗口级冒烟测试（npm run smoke，起真应用看渲染）
 ├── tools/screenshots/shoot.js           批量拍 README 截图
+├── docs/index.html                      GitHub Pages 落地页（单文件、无外部依赖）
 ├── docs/images/                         README 用的截图
 └── src/
     ├── main/
@@ -501,6 +521,7 @@ tail -f "<应用数据目录>/logs/main.log"
 | --- | --- |
 | [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode) | 同作者的 DSH 插件：一套系统提示词的**管理、切换与分享**。装在 DSH 里用，与这个壳互补 |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | 上游。本项目只消费它的 Web 界面，不修改本体 |
+| [项目主页](https://bowluna.github.io/dsh-multi-instance/) | 一页看完的介绍：截图、安装方式、已知限制（源文件是 `docs/index.html`） |
 
 ## 参与贡献
 

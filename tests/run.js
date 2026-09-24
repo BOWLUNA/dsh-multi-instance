@@ -270,11 +270,22 @@ function storeDir() {
   return sandbox();
 }
 
+/**
+ * 下面这组一律传 `rotateInterval: 0`（关掉轮转冷却）——
+ * 它们验的是「每笔写入都留一份」的备份/损坏语义。生产默认有 3 秒冷却，单独有一组用例测它。
+ */
+
+/** 可推进的假时钟 */
+function fakeClock(start = 1_000_000) {
+  let t = start;
+  return { now: () => t, tick: (ms) => { t += ms; } };
+}
+
 test('读写往返：set 之后新建实例能读回来', () => {
   const file = path.join(storeDir(), 'config.json');
-  const a = new Store(file, { log: () => {} });
+  const a = new Store(file, { log: () => {}, rotateInterval: 0 });
   a.set('instances', [{ id: 'i1' }]);
-  const b = new Store(file, { log: () => {} });
+  const b = new Store(file, { log: () => {}, rotateInterval: 0 });
   assert.deepStrictEqual(b.get('instances'), [{ id: 'i1' }]);
   assert.strictEqual(b.recoveredFrom, null);
   assert.strictEqual(b.quarantined, null);
@@ -282,14 +293,14 @@ test('读写往返：set 之后新建实例能读回来', () => {
 
 test('首次写入不产生备份（还没有旧内容可留）', () => {
   const file = path.join(storeDir(), 'config.json');
-  new Store(file, { log: () => {} }).set('ui', { theme: 'light' });
+  new Store(file, { log: () => {}, rotateInterval: 0 }).set('ui', { theme: 'light' });
   assert.ok(fs.existsSync(file));
   assert.ok(!fs.existsSync(Store.backupPath(file, 1)));
 });
 
 test('第二次写入前，把能解析的旧内容留成 bak-1', () => {
   const file = path.join(storeDir(), 'config.json');
-  const s = new Store(file, { log: () => {} });
+  const s = new Store(file, { log: () => {}, rotateInterval: 0 });
   s.set('instances', ['第一版']);
   s.set('instances', ['第二版']);
   const bak = JSON.parse(fs.readFileSync(Store.backupPath(file, 1), 'utf8'));
@@ -299,7 +310,7 @@ test('第二次写入前，把能解析的旧内容留成 bak-1', () => {
 
 test(`备份最多保留 ${Store.BACKUP_KEEP} 份，最老的被挤掉`, () => {
   const file = path.join(storeDir(), 'config.json');
-  const s = new Store(file, { log: () => {} });
+  const s = new Store(file, { log: () => {}, rotateInterval: 0 });
   for (let i = 1; i <= Store.BACKUP_KEEP + 3; i += 1) s.set('n', i);
   for (let i = 1; i <= Store.BACKUP_KEEP; i += 1) {
     assert.ok(fs.existsSync(Store.backupPath(file, i)), `缺 bak-${i}`);
@@ -311,12 +322,12 @@ test(`备份最多保留 ${Store.BACKUP_KEEP} 份，最老的被挤掉`, () => {
 
 test('★ 配置损坏 → 从 bak-1 回退，并写回主文件（自愈）', () => {
   const file = path.join(storeDir(), 'config.json');
-  const s = new Store(file, { log: () => {} });
+  const s = new Store(file, { log: () => {}, rotateInterval: 0 });
   s.set('instances', [{ id: 'i1' }, { id: 'i2' }]);
   s.set('ui', { theme: 'dark' }); // 这一步产生 bak-1（含 instances）
   fs.writeFileSync(file, '{"instances":[{"id":"i1"', 'utf8'); // 半截 JSON
 
-  const recovered = new Store(file, { log: () => {} });
+  const recovered = new Store(file, { log: () => {}, rotateInterval: 0 });
   assert.strictEqual(recovered.get('instances').length, 2);
   assert.ok(recovered.recoveredFrom, '应当记录回退来源');
   assert.deepStrictEqual(
@@ -331,7 +342,7 @@ test('★ 配置损坏且没有任何备份 → 残片必须被保留，不能�
   const file = path.join(storeDir(), 'config.json');
   fs.writeFileSync(file, '{"instances":[1,2,3],"panes":[1,', 'utf8');
   const broken = '{"instances":[1,2,3],"panes":[1,';
-  const s = new Store(file, { log: () => {} });
+  const s = new Store(file, { log: () => {}, rotateInterval: 0 });
   assert.deepStrictEqual(s.all(), {}, '按空配置继续');
   assert.ok(s.quarantined, '应当留下隔离文件');
   assert.strictEqual(fs.readFileSync(s.quarantined, 'utf8'), broken, '残片内容要原样保留');
@@ -350,13 +361,13 @@ test('★ 配置损坏且没有任何备份 → 残片必须被保留，不能�
 
 test('坏盘不会污染备份链：当前文件损坏时不写 bak-1', () => {
   const file = path.join(storeDir(), 'config.json');
-  const s = new Store(file, { log: () => {} });
+  const s = new Store(file, { log: () => {}, rotateInterval: 0 });
   s.set('instances', ['好的一版']);
   s.set('ui', {}); // bak-1 = 含 instances 的那一版
   const goodBak = fs.readFileSync(Store.backupPath(file, 1), 'utf8');
 
   fs.writeFileSync(file, 'not json at all', 'utf8');
-  new Store(file, { log: () => {} }).set('ui', { theme: 'dark' });
+  new Store(file, { log: () => {}, rotateInterval: 0 }).set('ui', { theme: 'dark' });
   assert.strictEqual(
     fs.readFileSync(Store.backupPath(file, 1), 'utf8'),
     goodBak,
@@ -366,14 +377,14 @@ test('坏盘不会污染备份链：当前文件损坏时不写 bak-1', () => {
 
 test('目录不存在时也能建起来（首次启动）', () => {
   const file = path.join(storeDir(), 'deep', 'nested', 'config.json');
-  const s = new Store(file, { log: () => {} });
+  const s = new Store(file, { log: () => {}, rotateInterval: 0 });
   s.set('instances', []);
   assert.ok(fs.existsSync(file));
 });
 
 test('文件不存在 → 空配置，且不产生隔离文件', () => {
   const file = path.join(storeDir(), 'config.json');
-  const s = new Store(file, { log: () => {} });
+  const s = new Store(file, { log: () => {}, rotateInterval: 0 });
   assert.deepStrictEqual(s.all(), {});
   assert.strictEqual(s.quarantined, null);
   assert.strictEqual(s.readError, null, 'ENOENT 不算错误');
@@ -382,7 +393,7 @@ test('文件不存在 → 空配置，且不产生隔离文件', () => {
 test('get 的兜底值只在键不存在时生效', () => {
   const file = path.join(storeDir(), 'config.json');
   fs.writeFileSync(file, JSON.stringify({ a: null, b: 0 }), 'utf8');
-  const s = new Store(file, { log: () => {} });
+  const s = new Store(file, { log: () => {}, rotateInterval: 0 });
   assert.strictEqual(s.get('a', 'fallback'), null, '键在但值是 null → 返回 null');
   assert.strictEqual(s.get('b', 9), 0);
   assert.strictEqual(s.get('missing', 'fallback'), 'fallback');
@@ -423,6 +434,58 @@ test('写失败不抛异常（目录被占）', () => {
   });
   assert.doesNotThrow(() => s.set('a', 1));
   assert.strictEqual(s.get('a'), 1, '内存里仍然生效');
+});
+
+suite('store · 轮转冷却（一次动作只占一个备份槽）');
+
+test('★ 冷却窗口内的连续写入只占一个槽 —— 三份备份对应三次真实动作', () => {
+  const clock = fakeClock();
+  const file = path.join(storeDir(), 'config.json');
+  const F0 = { panes: [], ui: { theme: 'system' } };
+  fs.writeFileSync(file, JSON.stringify(F0), 'utf8'); // 启动时就有一份配置
+
+  // 生产默认：rotateInterval = 3000ms，时钟注入以便推进
+  const s = new Store(file, { log: () => {}, now: clock.now });
+
+  // 动作一：模拟 state:save 的三笔连写（panes / ui / collapsed）
+  s.set('panes', ['p1']);
+  s.set('ui', { theme: 'light' });
+  s.set('collapsed', ['p2']);
+  clock.tick(4000);
+
+  // 动作二
+  s.set('panes', ['p1', 'p3']);
+  clock.tick(4000);
+
+  // 动作三
+  s.set('ui', { theme: 'dark' });
+
+  const bak = (n) => JSON.parse(fs.readFileSync(Store.backupPath(file, n), 'utf8'));
+  // 三个槽分别是「动作二之后」「动作一之后」「启动时」——
+  // 若没有冷却，这三笔会全被动作二/三内部的中间态占满，启动态那一份直接丢失。
+  assert.deepStrictEqual(bak(1), { panes: ['p1', 'p3'], ui: { theme: 'light' }, collapsed: ['p2'] });
+  assert.deepStrictEqual(bak(2), { panes: ['p1'], ui: { theme: 'light' }, collapsed: ['p2'] });
+  assert.deepStrictEqual(bak(3), F0, 'bak-3 应当还是启动时那一份');
+});
+
+test('冷却期过后恢复轮转（不会永久停摆）', () => {
+  const clock = fakeClock();
+  const file = path.join(storeDir(), 'config.json');
+  const s = new Store(file, { log: () => {}, now: clock.now });
+  s.set('a', 1);
+  clock.tick(Store.ROTATE_MIN_INTERVAL_MS);
+  s.set('a', 2);
+  assert.ok(fs.existsSync(Store.backupPath(file, 1)));
+  assert.strictEqual(JSON.parse(fs.readFileSync(Store.backupPath(file, 1), 'utf8')).a, 1);
+});
+
+test('rotateInterval=0 时每笔写入都轮转（老语义，测试与排障用）', () => {
+  const clock = fakeClock();
+  const file = path.join(storeDir(), 'config.json');
+  const s = new Store(file, { log: () => {}, now: clock.now, rotateInterval: 0 });
+  s.set('a', 1);
+  s.set('a', 2);
+  assert.strictEqual(JSON.parse(fs.readFileSync(Store.backupPath(file, 1), 'utf8')).a, 1);
 });
 
 suite('bin/cli · 参数解析（--version / --help）');

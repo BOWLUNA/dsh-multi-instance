@@ -528,6 +528,9 @@ function scheduleSelfTest() {
 
 // ---------------------------------------------------------------- webview
 
+/** 已经走过 will-attach-webview 的分区名。给下面的护栏做对照用。 */
+const attachedPanes = new Set();
+
 app.on('web-contents-created', (_event, contents) => {
   const type = contents.getType();
 
@@ -543,15 +546,30 @@ app.on('web-contents-created', (_event, contents) => {
     return { action: 'deny' };
   });
 
-  if (type !== 'webview') return;
-
-  contents.on('will-attach-webview', (_e, webPreferences, params) => {
-    hardenSession(params.partition);
-    delete webPreferences.preload;
-    webPreferences.nodeIntegration = false;
-    webPreferences.contextIsolation = true;
-    log(`webview 挂载 partition=${params.partition} src=${params.src}`);
-  });
+  // ★ 这里曾经是 `if (type !== 'webview') return;` 打头 —— **整段加固从来没执行过**。
+  //
+  //   `will-attach-webview` 是在**宿主**（整窗 webContents，type='window'）上触发的，
+  //   不是在被嵌进来的那个 webview 自己身上触发的。原先那行早退把宿主挡在外面，
+  //   于是下面的 handler 永远注册不上 ⇒ `hardenSession()` 一次都没被调用过。
+  //
+  //   实测证据（tools/smoke.js，修复前）：
+  //     窗格发出的请求 UA 是 Electron 默认那串
+  //     `… dsh-multi-instance/0.4.0 Chrome/144.0.7559.236 Electron/40.10.2 Safari/537.36`
+  //     —— 而 `hardenSession()` 里的 `setUserAgent(chromeUA())` 本应把它换成纯 Chrome UA。
+  //   日志里也从来搜不到 `webview 挂载 partition=` 那一行。
+  //
+  //   现在按事件真正的归属注册：挂载钩子给宿主，其余生命周期钩子给 webview。
+  if (type !== 'webview') {
+    contents.on('will-attach-webview', (_e, webPreferences, params) => {
+      hardenSession(params.partition);
+      attachedPanes.add(String(params.partition || ''));
+      delete webPreferences.preload;
+      webPreferences.nodeIntegration = false;
+      webPreferences.contextIsolation = true;
+      log(`webview 挂载 partition=${params.partition} src=${params.src}`);
+    });
+    return;
+  }
 
   contents.on('did-finish-load', () => log(`webview 加载完成 id=${contents.id} url=${contents.getURL()}`));
   contents.on('did-fail-load', (_e, code, desc, url) =>
@@ -865,7 +883,23 @@ function registerIpc() {
   });
   ipcMain.on('win:close', () => mainWindow && mainWindow.close());
 
-  ipcMain.on('log:write', (_e, msg) => log('[renderer]', String(msg)));
+  /**
+   * 渲染层日志里混着一条 `pane <窗格id> inst=<实例id> webContentsId=<n>`（窗格挂上以后报的）。
+   * 顺手当护栏用：**只要看到窗格报到了，却没有对应的 `webview 挂载` 记录，
+   * 就说明 will-attach-webview 又没接上** —— 加固没生效这件事必须显形，
+   * 不能像 0.4.0 之前那样静默过去（见上面 web-contents-created 里的注释）。
+   */
+  ipcMain.on('log:write', (_e, msg) => {
+    const text = String(msg);
+    log('[renderer]', text);
+    const m = text.match(/^pane \S+ inst=(\S+) webContentsId=/);
+    if (m && !attachedPanes.has(`persist:pane-${m[1]}`)) {
+      log(
+        `[guard] 窗格（实例 ${m[1]}）已挂载但没走 will-attach-webview —— ` +
+          `分区加固（UA / 权限）没生效，检查 web-contents-created 里的注册对象`
+      );
+    }
+  });
 }
 
 // ---------------------------------------------------------------- 生命周期

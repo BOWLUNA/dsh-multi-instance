@@ -1,6 +1,6 @@
 {
   "name": "dsh-multi-instance",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "DeepSeek Harness 多实例桌面客户端：把 dsh web 装进原生 webview 窗口，按 URL 接入多个实例 —— 本机、WSL2、服务器都行。分屏平铺、自由排布、每格独立会话。｜Multi-instance desktop client & webview shell for DeepSeek Harness (dsh) - multi-window panes, tiling layout, isolated session per pane.",
   "main": "src/main/main.js",
   "bin": {
@@ -79,6 +79,7 @@
     "start:debug": "electron . --devtools",
     "start:demo": "electron . --demo",
     "test": "node tests/run.js",
+    "smoke": "node tools/smoke.js",
     "check:assets": "node tools/check-binary-assets.js",
     "selftest": "electron . --selftest",
     "selftest:side": "electron . --selftest-side",
@@ -149,7 +150,7 @@
     "asar": true
   },
   "devDependencies": {
-    "electron": "40.10.2",
+    "electron": "44.4.3",
     "electron-builder": "^26.15.3"
   },
   "engines": {

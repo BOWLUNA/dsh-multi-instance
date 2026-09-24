@@ -23,7 +23,9 @@ jobs:
       # 刻意不跑 npm install：测试套件是零依赖的纯 Node，
       # 而 electron 是 devDependency（几十 MB 的二进制），装它只会让 CI 变慢、
       # 而且在无头 runner 上根本用不到。测试要能被这样跑起来，正是它存在的意义。
-      - uses: actions/setup-node@v4
+      #
+      # 需要真起窗口的验证在下面单独一个 job（smoke），只有它才装 electron。
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
 
@@ -55,3 +57,38 @@ jobs:
             exit 1
           }
           echo "版本号一致"
+
+  # ── 窗口级冒烟 ────────────────────────────────────────────────────────
+  # 上面那个 job 全是纯逻辑，**窗口里的东西一条都测不到**；而本项目的坑大多长在窗口里
+  # （webview 挂不上、分区没加固、渲染层没起来）。这里真起一次应用。
+  #
+  # 为什么只跑 windows：本项目只有 Windows 目标（无边框窗口与边缘热区是照 Windows 调的），
+  # 而 Linux runner 起 GUI 还要额外配 xvfb，测不出额外信息。
+  #
+  # 脚本自己起一个假 DSH 页面，不依赖网络、不依赖真实 DSH。
+  smoke:
+    name: smoke (windows)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      # 只有这个 job 需要 electron 二进制（约几十 MB）
+      - name: 安装依赖
+        run: npm ci --no-audit --no-fund
+
+      - name: 起一次真窗口，看网页有没有真的渲染出来
+        run: npm run smoke
+
+      - name: 失败时把冒烟现场留档
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure
+          path: .tmp/smoke
+          if-no-files-found: ignore
+          retention-days: 7

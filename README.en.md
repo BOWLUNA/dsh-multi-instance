@@ -5,7 +5,7 @@ English | [简体中文](README.md)
 ![dsh-multi-instance — a multi-instance desktop client for DeepSeek Harness](https://raw.githubusercontent.com/BOWLUNA/dsh-multi-instance/main/docs/images/header.png)
 
 <!-- badge rows: same two-part structure (dark label + coloured value) in both rows; every new repo copies this block -->
-[![release](https://img.shields.io/github/v/release/BOWLUNA/dsh-multi-instance?label=release&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20WSL2-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![tests](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-multi-instance/ci.yml?label=tests&style=flat-square&labelColor=1f2430&logo=githubactions&logoColor=white)](https://github.com/BOWLUNA/dsh-multi-instance/actions/workflows/ci.yml) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![electron](https://img.shields.io/badge/electron-40-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1f2430)](https://www.electronjs.org/) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/deepseek-ai/deepseek-harness) [![npm](https://img.shields.io/npm/v/dsh-multi-instance?label=npm%20(placeholder)&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance)
+[![release](https://img.shields.io/github/v/release/BOWLUNA/dsh-multi-instance?label=release&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20WSL2-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![tests](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-multi-instance/ci.yml?label=tests&style=flat-square&labelColor=1f2430&logo=githubactions&logoColor=white)](https://github.com/BOWLUNA/dsh-multi-instance/actions/workflows/ci.yml) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![electron](https://img.shields.io/badge/electron-44-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1f2430)](https://www.electronjs.org/) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/deepseek-ai/deepseek-harness) [![npm](https://img.shields.io/npm/v/dsh-multi-instance?label=npm%20(placeholder)&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance)
 
 [![bilibili](https://img.shields.io/badge/bilibili-videos-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white&labelColor=1f2430)](https://b23.tv/qJ4Ev0W) [![Douyin](https://img.shields.io/badge/Douyin-shorts-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white&labelColor=1f2430)](https://v.douyin.com/VWh0M03Fa4Y/) [![RedNote](https://img.shields.io/badge/RedNote-notes-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white&labelColor=1f2430)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-chat-%235865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1f2430)](https://discord.gg/pz97SfAfSy) [![GitHub](https://img.shields.io/github/discussions/BOWLUNA/dsh-multi-instance?label=GitHub&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/discussions)
 
@@ -136,7 +136,8 @@ Or double-click `start.vbs` (no console window) / `start.cmd`.
 > ⚠️ The launchers contain a line `unset ELECTRON_RUN_AS_NODE` / `set "ELECTRON_RUN_AS_NODE="` — **do not remove it**.
 > When that variable is left as `1` (any child of an Electron-family tool inherits it), `electron.exe`
 > degrades into plain Node and Chromium never starts — the symptom is "double-click does nothing".
-> To check: `electron.exe --version` printing `v24.15.0` means you hit this; it should print `v40.10.2`.
+> To check: `electron.exe --version` printing a **Node version** (`v24.21.0` and friends) means you hit
+> this; the correct output is the **Electron version**, `v44.4.3`.
 
 ---
 
@@ -328,17 +329,34 @@ Launch (pick one):
 ### Testing
 
 ```bash
-npm test              # plain Node — no GUI, no Electron required
+npm test              # 57 checks — plain Node, no GUI, no Electron required
+npm run smoke         # 30 checks — boots the real app and looks at what it rendered
 ```
 
-Covers the **pure logic**: user-data location and migration, config read/write + backup + corruption
-recovery, instance address resolution, and the npm entry point's argument parsing and runtime lookup.
-Zero dependencies, plain Node. Window behaviour and renderer interaction still need `--selftest*`, which
-require a real window.
+`npm test` covers the **pure logic**: user-data location and migration, config read/write + backup +
+corruption recovery, instance address resolution, and the npm entry point's argument parsing and runtime
+lookup. Zero dependencies, plain Node.
 
-> Why the split: the `--selftest*` switches need a real window, so in a headless environment (CI, SSH,
-> container) not one of them can run — which left "did I break something?" to the naked eye. This project
-> lost exactly one defect that way: **user config silently dropped** across a rename.
+`npm run smoke` covers the other half — **what is inside the window**, which the pure-logic suite cannot
+reach. It serves a fake DSH page on localhost, boots the real app against a seeded config, and asserts on
+the fact that **the page was actually requested**: renderer boot, window shown, webview attached and
+loaded, one isolated partition per pane, the UA the pane sends, a non-blank screenshot, and the exit code.
+No network, no real DSH, no credentials — and your own config is untouched (userData points at a temp dir).
+
+```bash
+npm run smoke                    # default scene: one pane
+node tools/smoke.js --scene=tile # four panes, tiled
+node tools/smoke.js --scene=empty# the empty-canvas onboarding state
+node tools/smoke.js --keep       # keep .tmp/smoke on failure for post-mortem
+```
+
+> This suite exists because of a specific defect: before 0.5.0 the per-pane **partition hardening was
+> dead code** — `will-attach-webview` was registered on the wrong object (see the 0.5.0 entry in the
+> [changelog](CHANGELOG.md)). All 57 pure-logic checks were green while the defect sat in the window;
+> `npm run smoke` turned two assertions red immediately.
+
+Interaction self-tests (dragging, the hover bubble, sidebar auto-collapse) still go through the
+`--selftest*` switches, which need a real window plus synthetic mouse events.
 
 ### Building from source
 
@@ -407,9 +425,11 @@ packaged builds**.
 
 **How the config protects itself** (relevant if you have ever lost it): before every overwrite of
 `config.json`, the **last parseable** content is rolled into `bak-1` (the older ones shift back, 3 kept).
-When the file cannot be parsed, the fragment on hand is first preserved verbatim as
-`config.json.corrupt-<timestamp>`, then the newest valid backup is restored **and written back to the main
-file** (self-healing). Both actions land in the log:
+A single user action is coalesced into one slot — one action writes several keys in a row
+(`panes` / `ui` / `collapsed`) and no further rotation happens for 3 seconds, so the **3 backups correspond
+to the last 3 actions, not the last 3 disk writes**. When the file cannot be parsed, the fragment on hand is
+first preserved verbatim as `config.json.corrupt-<timestamp>`, then the newest valid backup is restored
+**and written back to the main file** (self-healing). Both actions land in the log:
 
 ```
 [store] 配置损坏，残片已保留: config.json.corrupt-2026-09-24T05-31-02-123Z（32 字节）
@@ -484,9 +504,10 @@ its `config.json` into `%APPDATA%\dsh-multi-instance\` by hand (with the app clo
 `userData=` log line is the authoritative answer.)
 
 **From 0.4.0 the config keeps its own backups.** Seeing `config.json.bak-1` / `bak-2` / `bak-3` is normal
-(one shift per write). Seeing `config.json.corrupt-<timestamp>` means the file was once unreadable — that
-file is the **verbatim fragment**, do not delete it. The log carries the matching two lines, and `bak-1` is
-usually the version you want: close the app, copy `config.json.bak-1` over `config.json`, start again.
+(one shift per action; a burst of writes shares one slot). Seeing `config.json.corrupt-<timestamp>` means the
+file was once unreadable — that file is the **verbatim fragment**, do not delete it. The log carries the
+matching two lines, and `bak-1` is usually the version you want: close the app, copy `config.json.bak-1`
+over `config.json`, start again.
 
 ---
 
@@ -519,8 +540,10 @@ usually the version you want: close the app, copy `config.json.bak-1` over `conf
 ├── bin/cli.js                           npm entry point (--version / --help + finds electron and launches the app)
 ├── build/icon.ico                       app icon
 ├── start.cmd / start.vbs / start.sh     launchers (pick one)
-├── tests/run.js                         plain-Node test suite (npm test)
+├── tests/run.js                         plain-Node test suite (npm test, 57 pure-logic checks)
+├── tools/smoke.js                       window-level smoke test (npm run smoke)
 ├── tools/screenshots/shoot.js           batch screenshot tool for README images
+├── docs/index.html                      GitHub Pages landing page (single file, no external deps)
 ├── docs/images/                         screenshots used by the READMEs
 └── src/
     ├── main/
@@ -548,6 +571,7 @@ usually the version you want: close the app, copy `config.json.bak-1` over `conf
 | --- | --- |
 | [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode) | By the same author: a DSH plugin to **manage, switch and share system prompt sets**. Runs inside DSH; complements this shell |
 | [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Upstream. This project only consumes its web UI and never modifies it |
+| [Project page](https://bowluna.github.io/dsh-multi-instance/) | The one-page intro: screenshots, install options, known limits (source: `docs/index.html`) |
 
 ## Contributing
 

@@ -707,7 +707,7 @@ function mountWebview(item) {
       const wcId = wv.getWebContentsId();
       paneByWcId.set(wcId, item.model.id);
       wcIdByPane.set(item.model.id, wcId);
-      api.log(`pane ${item.model.id} webContentsId=${wcId}`);
+      api.log(`pane ${item.model.id} inst=${item.model.instanceId} webContentsId=${wcId}`);
     } catch { /* ignore */ }
     if (layout.activeId === item.model.id) syncAddr();
   });

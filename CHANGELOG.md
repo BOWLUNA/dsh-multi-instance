@@ -3,7 +3,55 @@
 本文件记录用户可感知的变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [未发布]
+## [0.5.0] — 2026-09-24
+
+### 新增
+
+- **`npm run smoke` —— 窗口级冒烟测试**（`tools/smoke.js`）：起一次真应用，看网页有没有真的被渲染出来。
+  脚本自己在本机起一个「假 DSH」页面，断言点落在**那个页面确实被请求了**上 ——
+  全程不需要网络、不需要真的 DSH、不需要任何凭据。
+  三种场景（`--scene=pane|empty|tile`）共 30 / 26 / 30 条断言，覆盖：
+  Electron 版本对齐、userData 落点隔离、渲染层 boot、窗口显示、webview 挂载与加载、
+  独立 partition、端到端请求、UA、截图非空白、致命错误与退出码。
+  这件事的分量在于：此前的 57 条测试**全是纯逻辑，窗口里的东西一条都测不到** ——
+  而本项目的坑恰好大多长在窗口里（见下面那条修复）。
+  CI 新增 `smoke (windows)` job，失败时把 `.tmp/smoke` 传成 artifact 留档。
+
+### 修复
+
+- **窗格的分区加固整段是死代码（P1）**。`will-attach-webview` 是在**宿主窗口**
+  （`contents.getType() === 'window'`）上触发的，而代码把它注册在 type 为 `webview` 的内容上 ——
+  中间那句 `if (type !== 'webview') return` 早退把唯一的宿主挡在门外，
+  于是 handler 永远注册不上，`hardenSession()` **一次都没被执行过**。
+
+  实测（修复前，`npm run smoke`）：窗格发出的请求 UA 是 Electron 默认那串 ——
+  ```
+  Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)
+  dsh-multi-instance/0.4.0 Chrome/144.0.7559.236 Electron/40.10.2 Safari/537.36
+  ```
+  而 `hardenSession()` 里的 `setUserAgent(chromeUA())` 本应把它换成纯 Chrome UA；
+  日志里也从来搜不到 `webview 挂载 partition=` 那一行。
+
+  影响两条：**每个窗格的 session 都没做过 UA 与权限加固**；被嵌页面能直接从 UA 里读到
+  Electron 与本应用的名字、版本（指纹信息），而「壳子在 DSH 眼里就是一普通浏览器」这个前提是落空的。
+  修复后同一条断言由红转绿，UA 变成 `… Chrome/152.0.7977.130 Safari/537.36`。
+
+  另外加了一条护栏：窗格报到了却没有对应挂载记录时，主日志里会出现
+  `[guard] 窗格（实例 xxx）已挂载但没走 will-attach-webview …` ——
+  这类「静默失效」不能再沉默下去（0.4.0 之前它静默了整整两版）。
+
+- **一次操作只占一个备份槽**。主进程的 `state:save` 会把 `panes` / `ui` / `collapsed` 分三笔写，
+  原先每笔都轮转备份 ⇒ 三个槽被**同一次拖动内部**的中间态占满，
+  「给你留 3 份」实际只剩「回退一次拖动」的粒度。
+  加 3 秒轮转冷却后，3 份备份真的对应最近 3 次操作（含启动时那一份）。
+
+### 依赖
+
+- electron `40.10.2` → `44.4.3`（Chromium 144 → 152）。
+  **这是用 `npm run smoke` 实测过的**，三种场景全绿 —— 不是「dependabot 说没冲突」那种证据。
+  本机拉 `github.com` 的 release 资产持续失败（`fetch failed`），二进制走
+  `ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/` 取得。
+- GitHub Actions `actions/setup-node` v4 → v7。
 
 ### 文档 / 工具（0.4.0 打包时实测到的）
 
@@ -13,6 +61,7 @@
   0.4.0 这一轮打包两种都遇到了，中英 README 已按这个事实重写（此前只写了致命那一种）。
 - `clean:dist` 顺手清掉 `*.__uninstaller.exe` / `*.nsis.7z` / `*.blockmap` 这类每次重造的中间文件
   —— 既避免收尾那行红字，也省下每版约 90MB 的 `nsis.7z` 残留。
+- 中英 README 补上 `npm run smoke` 的说明与「窗口里的东西只有跑起来才看得见」这条口径。
 
 ## [0.4.0] — 2026-09-24
 
@@ -129,7 +178,8 @@
 
 - **占位版本**，内容为空壳。仅用于占住 npm 上的包名，请以 GitHub 仓库为准。
 
-[未发布]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.4.0...HEAD
+[未发布]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BOWLUNA/dsh-multi-instance/releases/tag/v0.2.0

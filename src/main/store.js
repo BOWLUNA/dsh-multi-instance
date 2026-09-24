@@ -25,6 +25,17 @@ const path = require('path');
 /** 保留几份历史备份。3 份足够覆盖「连续几次误操作/坏盘」的回退需求，也不会撑爆目录。 */
 const BACKUP_KEEP = 3;
 
+/**
+ * 两次轮转之间的最小间隔。
+ *
+ * ★ 为什么需要它：一次**用户动作**会连着写好几笔 —— 主进程的 `state:save` 里
+ *   `panes` / `ui` / `collapsed` 是分三次 `set()` 的。如果每笔写入都轮转，
+ *   bak-1/2/3 三个槽会被**同一次动作**内部的历史占满，
+ *   「给你留 3 份」实际上只剩「回退一次拖动」的粒度。
+ *   加冷却之后，一串写入只占一个槽 ⇒ 3 个槽真的对应最近 3 次不同动作。
+ */
+const ROTATE_MIN_INTERVAL_MS = 3000;
+
 /** 备份文件路径：`config.json.bak-1`（1 最新） */
 function backupPath(file, n) {
   return `${file}.bak-${n}`;
@@ -43,18 +54,25 @@ class Store {
    * @param {object} [opts.fs]   注入的 fs（测试用）
    * @param {Function} [opts.log] 日志回调，收到 `[store] ...` 一行
    * @param {boolean}  [opts.backup=true] 是否启用写前备份
+   * @param {Function} [opts.now] 时钟（测试用）
+   * @param {number}   [opts.rotateInterval] 轮转冷却毫秒数；传 0 = 每笔写入都轮转
    */
   constructor(file, opts = {}) {
     this.file = file;
     this.fs = opts.fs || fs;
     this.log = typeof opts.log === 'function' ? opts.log : (msg) => console.error(msg);
     this.backup = opts.backup !== false;
+    this.now = typeof opts.now === 'function' ? opts.now : Date.now;
+    this.rotateInterval =
+      typeof opts.rotateInterval === 'number' ? opts.rotateInterval : ROTATE_MIN_INTERVAL_MS;
 
     /** 这次读取是否用到了损坏回退；`null` 表示没发生。诊断用。 */
     this.recoveredFrom = null;
     /** 损坏残片被保留到哪；`null` 表示没发生。 */
     this.quarantined = null;
     this.readError = null;
+    /** 上次真的轮转过的时间戳（用于冷却）。*/
+    this._rotatedAt = null;
 
     this.data = this._read();
   }
@@ -163,8 +181,12 @@ class Store {
 
   /**
    * 写前把当前文件推进备份链：bak-2 → bak-3，bak-1 → bak-2，当前 → bak-1。
-   * ★ 只备份**能解析的**内容 —— 否则一次坏盘会把好备份一路挤掉，
-   *   反而让「回退」回退到一个同样坏的文件上。
+   *
+   * 两条约束：
+   *  1. ★ 只备份**能解析的**内容 —— 否则一次坏盘会把好备份一路挤掉，
+   *     反而让「回退」回退到一个同样坏的文件上。
+   *  2. ★ 冷却窗口内的连续写入**只占一个备份槽**（见 ROTATE_MIN_INTERVAL_MS）
+   *     —— 否则三个槽会被同一次用户动作内部的历史占满。
    */
   _rotateBackups() {
     if (!this.backup) return [];
@@ -178,6 +200,15 @@ class Store {
       return []; // 还没有主文件（首次写入）
     }
     if (!parseObject(current)) return [];
+
+    const stamp = this.now();
+    if (
+      this.rotateInterval > 0 &&
+      this._rotatedAt !== null &&
+      stamp - this._rotatedAt < this.rotateInterval
+    ) {
+      return []; // 同一串写入，已经为它留过一份了
+    }
 
     const moved = [];
     try {
@@ -199,6 +230,7 @@ class Store {
     }
     try {
       f.writeFileSync(backupPath(file, 1), current, 'utf8');
+      this._rotatedAt = stamp;
     } catch (err) {
       this.log(`[store] 备份写入失败（继续写主文件）: ${err.message}`);
     }
@@ -219,6 +251,7 @@ function parseObject(raw) {
 // 挂在类上导出：`Store` 本身仍是构造函数（`new Store(file)` 不变），
 // 但常量与纯函数能单独拿出来测。
 Store.BACKUP_KEEP = BACKUP_KEEP;
+Store.ROTATE_MIN_INTERVAL_MS = ROTATE_MIN_INTERVAL_MS;
 Store.backupPath = backupPath;
 Store.quarantinePath = quarantinePath;
 Store.parseObject = parseObject;
