@@ -23,7 +23,7 @@ jobs:
       # 刻意不跑 npm install：测试套件是零依赖的纯 Node，
       # 而 electron 是 devDependency（几十 MB 的二进制），装它只会让 CI 变慢、
       # 而且在无头 runner 上根本用不到。测试要能被这样跑起来，正是它存在的意义。
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 20
 
