@@ -354,15 +354,21 @@ Artifacts land in `dist/`. All three commands run `npm run clean:dist` first (a 
 > repository's own development directory contains Chinese characters, and both artifacts above were built
 > in place. No need to move to an ASCII temporary path.
 
-> **What `clean:dist` is for**: before unpacking Electron, electron-builder deletes
-> `dist/win-unpacked` and `dist/win-unpacked.tmp`. Inside a sandbox that injects a *bulk-delete guard*
-> (some AI terminals do), that step fails with `SAFE_DELETE_BULK_CONFIRM_REQUIRED` — and it fails at the
-> **unpack** stage, so **you get no artifacts at all**. It is not the "cleanup complained but the artifacts
-> are already there" case that can be ignored.
-> `clean:dist` removes those two directories ahead of time using the **synchronous** `fs.rmSync`
-> (the synchronous API is not intercepted); by the time the build reaches that step the directories are
-> already gone, the count is 0 and the guard never fires. You will not need it for a normal manual build —
-> only inside such sandboxes.
+> **What `clean:dist` is for**: electron-builder deletes `dist/win-unpacked`, `dist/win-unpacked.tmp`,
+> and — during NSIS finalisation — the previous version's `.__uninstaller.exe`. Inside a sandbox that
+> injects a *bulk-delete guard* (some AI terminals do), those deletes fail with
+> `SAFE_DELETE_BULK_CONFIRM_REQUIRED`, and they happen at **two different stages with very different
+> consequences**:
+>
+> | Stage | Consequence |
+> | --- | --- |
+> | **Unpack** (`extractArchive`, removing `win-unpacked` / `.tmp`) | **Fatal** — no artifacts at all; the zip is left as a 0-byte shell |
+> | **Finalise** (NSIS `finishBuild`, removing `.__uninstaller.exe`) | Artifacts are already produced; you just get one red line |
+>
+> `clean:dist` (wired to `predist`) removes those directories and churn files **up front** using the
+> **synchronous** `fs.rmSync` — the synchronous API is not intercepted, so by the time the build reaches
+> those steps there is nothing to delete, the count is 0 and the guard never fires. A normal manual build
+> does not need it; only such sandboxes do.
 
 ### Debug switches
 

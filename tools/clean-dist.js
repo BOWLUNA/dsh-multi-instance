@@ -44,6 +44,18 @@ const UNPACKED = [
   'win-arm64-unpacked.tmp',
 ];
 
+/**
+ * 每次打包都会重造、体积又大的中间文件。
+ * 留着它们除了占地方，还会在**收尾**时报一次守卫错误 ——
+ * NSIS 结束时要删上一版的 `.__uninstaller.exe`，那条删除同样是批量守卫的目标。
+ * 产物本身是好的（已经生成），但那行红字会让人以为打包失败了，索性提前清掉。
+ */
+const CHURN = [
+  /\.__uninstaller\.exe$/i,
+  /\.nsis\.7z$/i,
+  /\.blockmap$/i,
+];
+
 function sizeOf(dir) {
   let bytes = 0;
   let count = 0;
@@ -92,11 +104,21 @@ function main(argv = process.argv.slice(2)) {
   }
 
   const targets = UNPACKED.map((n) => path.join(DIST, n)).filter((p) => fs.existsSync(p));
-  if (!targets.length) {
-    process.stdout.write('没有需要清理的解包目录\n');
+  // 中间文件：只删匹配 CHURN 的，历史版本的 exe / zip 一律留着（要用 --all 才动）
+  let churn = [];
+  try {
+    churn = fs.readdirSync(DIST)
+      .filter((n) => CHURN.some((re) => re.test(n)))
+      .map((n) => path.join(DIST, n));
+  } catch {
+    /* 读不动就跳过 */
+  }
+
+  if (!targets.length && !churn.length) {
+    process.stdout.write('没有需要清理的解包目录或中间文件\n');
     return 0;
   }
-  for (const t of targets) {
+  for (const t of [...targets, ...churn]) {
     try {
       const info = removeSync(t);
       process.stdout.write(
@@ -112,4 +134,4 @@ function main(argv = process.argv.slice(2)) {
 
 if (require.main === module) process.exit(main());
 
-module.exports = { main, removeSync, sizeOf, UNPACKED };
+module.exports = { main, removeSync, sizeOf, UNPACKED, CHURN };

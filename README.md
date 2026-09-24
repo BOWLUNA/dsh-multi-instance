@@ -322,14 +322,19 @@ npm run dist:zip      # 只出 zip
 > 实测（electron-builder 26.15.3）：**含中文的路径下也能正常打包** —— 本仓库的开发目录就含中文，
 > 上面两种产物都是在原地打出来的，不需要挪到英文临时目录。
 
-> **`clean:dist` 是干什么的**：electron-builder 解包 electron 之前会先删掉
-> `dist/win-unpacked` 与 `dist/win-unpacked.tmp`。在带「批量删除守卫」的沙箱里
-> （某些 AI 终端会注入这类拦截），这一步会以
-> `SAFE_DELETE_BULK_CONFIRM_REQUIRED` 失败 —— **而且是在解包阶段就失败，一个产物都不会有**，
-> 不是「收尾清理报错、产物已生成」那种可以忽略的情况。
-> `clean:dist` 用**同步**的 `fs.rmSync` 提前把这两个目录删掉（同步 API 不在拦截范围内），
-> 走到那一步时目录已不存在，计数为 0，守卫不会触发。
-> 平时手动打包用不到它 —— 只在这类沙箱里需要。
+> **`clean:dist` 是干什么的**：electron-builder 会删 `dist/win-unpacked`、`dist/win-unpacked.tmp`，
+> NSIS 收尾时还会删上一版的 `.__uninstaller.exe`。在带「批量删除守卫」的沙箱里
+> （某些 AI 终端会注入这类拦截），这些删除会以 `SAFE_DELETE_BULK_CONFIRM_REQUIRED` 失败，
+> 而且**出现在两个不同的阶段，后果完全不同**：
+>
+> | 阶段 | 后果 |
+> | --- | --- |
+> | **解包**（`extractArchive`，删 `win-unpacked` / `.tmp`） | **致命** —— `dist/` 里一个产物都没有，zip 只剩个 0 字节空壳 |
+> | **收尾**（NSIS `finishBuild`，删 `.__uninstaller.exe`） | 产物已经生成，只有一行红字 |
+>
+> `clean:dist`（挂在 `predist` 上）把这些目录和中间文件**提前**用 同步 `fs.rmSync` 清掉
+> —— 同步 API 不在拦截范围内；走到那一步时已经没有东西可删，计数为 0，守卫不会触发。
+> 平时手动打包不需要它，只在这类沙箱里有意义。
 
 ### 调试开关
 
