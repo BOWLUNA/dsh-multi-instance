@@ -1,0 +1,36 @@
+version: 2
+
+# 依赖巡检。这个项目只有两个 devDependency，但它们都不是「装完就不动」的那类：
+#   - electron：直接决定运行时行为（<webview> 的语义、partition、before-input-event 都跟版本走）
+#   - electron-builder：直接决定产物（NSIS / zip 的打包结果）
+# 所以只在**周一汇总成一个 PR**，不逐条刷屏。不想要就直接删掉本文件。
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '09:00'
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 2
+    versioning-strategy: increase
+    labels:
+      - dependencies
+    commit-message:
+      prefix: 'chore(deps)'
+    groups:
+      electron:
+        patterns:
+          - electron
+          - electron-builder
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 1
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: 'chore(ci)'

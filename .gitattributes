@@ -1,0 +1,60 @@
+# Git 属性 —— 让「什么文件是二进制」这件事不依赖启发式判断。
+#
+# ★ 这个文件是有来历的，不是模板搬运：
+#   本项目曾把 README 用的 PNG 与应用图标 ICO **当成文本**处理过一次，
+#   内容被 UTF-8 转义改写、图全花了，只好专门写脚本重建 blob（见 commit d8eb824）。
+#   git 的自动检测（`-text`）能挡住大多数情况，但它只在新文件**被 add 时**才生效；
+#   一旦内容经由 patch / API / 转义通道进仓库，检测就来不及了。
+#   显式声明 binary 是唯一不靠运气的写法。
+#
+# 检查现状：`git ls-files --eol`（`i/-text` = 索引里就是二进制）
+
+# 默认：让 git 自己判定文本 / 二进制。**不强制换行符** ——
+# 本仓库索引里全部是 LF（含 start.cmd / start.vbs），强制 CRLF 只会造成无意义的整体改写。
+* text=auto
+
+# ---------------------------------------------------------------- 二进制资产
+# 图片：README 截图、社交预览图、应用图标
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.bmp binary
+
+# 字体
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+
+# 归档与可执行产物（Releases 里上传的那两个就是这类）
+*.zip binary
+*.7z binary
+*.gz binary
+*.tar binary
+*.exe binary
+*.dll binary
+*.node binary
+*.msi binary
+
+# ---------------------------------------------------------------- 文本类
+# SVG 是文本（要能 diff），放在二进制区之外
+*.svg text
+*.md text
+*.js text
+*.css text
+*.html text
+*.json text
+*.yml text
+*.yaml text
+
+# ---------------------------------------------------------------- 生成物
+# diff 里不展开、语言统计里不算数
+package-lock.json -diff linguist-generated
+dist/** linguist-vendored
+docs/images/** linguist-documentation
+docs/_old/** linguist-documentation

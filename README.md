@@ -5,7 +5,8 @@
 ![dsh-multi-instance —— DeepSeek Harness 多实例桌面客户端](https://raw.githubusercontent.com/BOWLUNA/dsh-multi-instance/main/docs/images/header.png)
 
 <!-- 徽章行：与 dsh-custom-mode 同一套配色（深色标签 + 彩色值） -->
-[![npm](https://img.shields.io/npm/v/dsh-multi-instance?label=npm&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance) [![downloads](https://img.shields.io/npm/dm/dsh-multi-instance?label=downloads&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![tests](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-multi-instance/ci.yml?label=tests&style=flat-square&labelColor=1f2430&logo=githubactions&logoColor=white)](https://github.com/BOWLUNA/dsh-multi-instance/actions/workflows/ci.yml) [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20WSL2-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![electron](https://img.shields.io/badge/electron-40-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1f2430)](https://www.electronjs.org/) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/deepseek-ai/deepseek-harness)
+<!-- 版本以 GitHub Release 为准：npm 上目前只有占位包，所以 npm 徽章排在后面并写明 placeholder -->
+[![release](https://img.shields.io/github/v/release/BOWLUNA/dsh-multi-instance?label=release&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20WSL2-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![tests](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-multi-instance/ci.yml?label=tests&style=flat-square&labelColor=1f2430&logo=githubactions&logoColor=white)](https://github.com/BOWLUNA/dsh-multi-instance/actions/workflows/ci.yml) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![electron](https://img.shields.io/badge/electron-40-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1f2430)](https://www.electronjs.org/) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/deepseek-ai/deepseek-harness) [![npm](https://img.shields.io/npm/v/dsh-multi-instance?label=npm%20(placeholder)&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance)
 
 <!-- 社区行 -->
 [![bilibili](https://img.shields.io/badge/bilibili-videos-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white&labelColor=1f2430)](https://b23.tv/qJ4Ev0W) [![Douyin](https://img.shields.io/badge/Douyin-shorts-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white&labelColor=1f2430)](https://v.douyin.com/VWh0M03Fa4Y/) [![RedNote](https://img.shields.io/badge/RedNote-notes-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white&labelColor=1f2430)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-chat-%235865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1f2430)](https://discord.gg/pz97SfAfSy) [![GitHub](https://img.shields.io/github/discussions/BOWLUNA/dsh-multi-instance?label=GitHub&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/discussions)
@@ -104,9 +105,12 @@ cookie 互相覆盖、排布全靠手拉。
 
 ```bash
 npm i -g dsh-multi-instance   # 装完用 dsh-multi-instance 启动
+dsh-multi-instance --version  # 先确认装成了什么（不需要 Electron 也能看）
+dsh-multi-instance --help     # 全部开关
 ```
 
 > npm 方式需要先有 Electron 运行时（`npm i -g electron`）。打包成 exe 的那两种方式**不需要**任何前置依赖。
+> `--version` / `--help` 是唯二**不需要** Electron 就能用的开关 —— 装完先跑这两条，比启动失败再猜省事。
 
 ### 方式三：从源码跑
 
@@ -298,7 +302,8 @@ npm install          # 只装 electron 与 electron-builder
 npm test              # 纯 Node，不需要图形界面、不需要 Electron
 ```
 
-覆盖的是**纯逻辑**：用户数据落点与迁移、实例地址解析、npm 入口的运行时查找。
+覆盖的是**纯逻辑**：用户数据落点与迁移、配置的读写/备份/损坏恢复、实例地址解析、
+npm 入口的参数解析与运行时查找。零依赖、纯 Node，不需要装任何东西。
 窗口行为、渲染层交互那些仍然只能靠 `--selftest*`（它们要起真窗口，没 GUI 就跑不了）。
 
 > 为什么要分开：`--selftest*` 在没有图形界面的环境（CI、SSH、容器）里一条都跑不了，
@@ -347,10 +352,24 @@ npm run dist:zip      # 只出 zip
 | 内容 | 路径 |
 | --- | --- |
 | 用户配置（实例列表、窗格排布） | 应用数据目录下的 `config.json` |
+| 配置的自动备份（最近 3 份） | 同目录 `config.json.bak-1` … `bak-3` |
+| 配置损坏时保留的残片 | 同目录 `config.json.corrupt-<时间戳>` |
 | 每个窗格的登录态（浏览器分区） | 应用数据目录下的 `Partitions/` |
 | 主进程日志 | 应用数据目录下的 `logs/main.log` |
 
 应用数据目录在 Windows 上是 `%APPDATA%\dsh-multi-instance\`（开发态与打包版**同一个位置**）。
+
+**配置是怎么被保护的**（改坏过的人会关心这个）：每次覆盖 `config.json` 之前，先把**上一位能解析的**内容
+滚成 `bak-1`（旧的往后推，只留 3 份）；读不出来时，先把手上的残片原样存成 `config.json.corrupt-<时间戳>`，
+再从最近的备份回退，并把回退结果**写回主文件**。日志里会写明发生了什么：
+
+```
+[store] 配置损坏，残片已保留: config.json.corrupt-2026-09-24T05-31-02-123Z（32 字节）
+[store] 已从 config.json.bak-1 回退配置并写回主文件
+```
+
+所以「实例列表突然空了」不再是终局 —— 先别动文件，看 `logs/main.log` 里有没有上面两行，
+`bak-1` 就是上一次的配置。
 
 > **落点是钉死的，不是自动推导的。** Electron 默认把它算成 `<appData>/<应用名>`，
 > 而应用名在开发态取 `package.json` 的 `name`、在打包态取 `productName` ——
@@ -409,6 +428,14 @@ tail -f "<应用数据目录>/logs/main.log"
 复制到 `%APPDATA%\dsh-multi-instance\` 下面（先关掉应用）。
 （0.2.0 及更早版本存在落点漂移：开发态与打包版会写到不同目录。日志里 `userData=` 那行是权威答案。）
 
+**0.4.0 起，配置自己会留备份**：目录里出现 `config.json.bak-1` / `bak-2` / `bak-3` 是正常的
+（每写一次往前滚一位），出现 `config.json.corrupt-<时间戳>` 说明读到过一次坏内容 ——
+那一份是**原样保留的残片**，先别删。日志里会有对应两行，`bak-1` 通常就是你要回的那一版：
+关掉应用，把 `config.json.bak-1` 复制成 `config.json`，再启动。
+
+**实例列表里的条目在，但连不上 / 状态点是红的**
+这跟配置无关，是那一处 DSH 本身不在。按上面「窗格显示红色状态点」那条查。
+
 ---
 
 ## 已知限制
@@ -431,7 +458,7 @@ tail -f "<应用数据目录>/logs/main.log"
 ```
 .
 ├── package.json
-├── bin/cli.js                           npm 包的可执行入口（找 electron 并拉起应用）
+├── bin/cli.js                           npm 包的可执行入口（--version / --help + 找 electron 并拉起应用）
 ├── build/icon.ico                       应用图标
 ├── start.cmd / start.vbs / start.sh     启动器（三选一）
 ├── tests/run.js                         纯 Node 测试套件（npm test）
@@ -444,7 +471,7 @@ tail -f "<应用数据目录>/logs/main.log"
     │   ├── instances.js   实例模型：地址解析、起停、可达性探测
     │   ├── discovery.js   自动发现：扫进程/端口 + 扫 dsh 可执行文件 + 扫常见目录
     │   ├── installer.js   手动安装器（不捆绑 dsh）
-    │   └── store.js       JSON 配置读写
+    │   └── store.js       JSON 配置读写：原子写 + 滚动备份 + 损坏回退
     ├── preload/preload.js 白名单 IPC 桥
     └── renderer/
         ├── index.html

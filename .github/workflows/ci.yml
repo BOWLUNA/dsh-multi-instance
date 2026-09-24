@@ -30,6 +30,11 @@ jobs:
       - name: 跑无头测试套件
         run: node tests/run.js
 
+      # 护栏：本项目曾把 PNG / ICO 当文本处理过，图全花了（见 commit d8eb824）。
+      # 这里读 magic number 复验，防止再从 patch / API 通道混进被改写的图片。
+      - name: 校验图片资产没被当文本处理坏
+        run: node tools/check-binary-assets.js
+
       - name: 语法检查（所有源码都能被解析）
         shell: bash
         run: |

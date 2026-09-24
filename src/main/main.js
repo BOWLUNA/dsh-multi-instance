@@ -884,7 +884,13 @@ if (!gotLock) {
   app.on('window-all-closed', () => app.quit());
 
   app.whenReady().then(() => {
-    store = new Store(path.join(app.getPath('userData'), 'config.json'));
+    // 把主日志接给 Store：配置损坏 / 从备份回退这类事必须落在 logs/main.log 里，
+    // 否则用户「实例列表怎么空了」时在日志里查不到任何线索。
+    store = new Store(path.join(app.getPath('userData'), 'config.json'), { log });
+    log(
+      `store: 配置=${store.file} 恢复=${store.recoveredFrom ? path.basename(store.recoveredFrom) : '无'}` +
+        `${store.quarantined ? ` 残片=${path.basename(store.quarantined)}` : ''}`
+    );
     session.defaultSession.setUserAgent(chromeUA());
     registerIpc();
     createWindow();

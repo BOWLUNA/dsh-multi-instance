@@ -5,7 +5,7 @@ English | [简体中文](README.md)
 ![dsh-multi-instance — a multi-instance desktop client for DeepSeek Harness](https://raw.githubusercontent.com/BOWLUNA/dsh-multi-instance/main/docs/images/header.png)
 
 <!-- badge rows: same two-part structure (dark label + coloured value) in both rows; every new repo copies this block -->
-[![npm](https://img.shields.io/npm/v/dsh-multi-instance?label=npm&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance) [![downloads](https://img.shields.io/npm/dm/dsh-multi-instance?label=downloads&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![tests](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-multi-instance/ci.yml?label=tests&style=flat-square&labelColor=1f2430&logo=githubactions&logoColor=white)](https://github.com/BOWLUNA/dsh-multi-instance/actions/workflows/ci.yml) [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20WSL2-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![electron](https://img.shields.io/badge/electron-40-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1f2430)](https://www.electronjs.org/) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/deepseek-ai/deepseek-harness)
+[![release](https://img.shields.io/github/v/release/BOWLUNA/dsh-multi-instance?label=release&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![platform](https://img.shields.io/badge/platform-Windows%20%7C%20WSL2-0078D4?style=flat-square&logo=windows&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/releases) [![tests](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-multi-instance/ci.yml?label=tests&style=flat-square&labelColor=1f2430&logo=githubactions&logoColor=white)](https://github.com/BOWLUNA/dsh-multi-instance/actions/workflows/ci.yml) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![electron](https://img.shields.io/badge/electron-40-47848F?style=flat-square&logo=electron&logoColor=white&labelColor=1f2430)](https://www.electronjs.org/) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/deepseek-ai/deepseek-harness) [![npm](https://img.shields.io/npm/v/dsh-multi-instance?label=npm%20(placeholder)&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-multi-instance)
 
 [![bilibili](https://img.shields.io/badge/bilibili-videos-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white&labelColor=1f2430)](https://b23.tv/qJ4Ev0W) [![Douyin](https://img.shields.io/badge/Douyin-shorts-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white&labelColor=1f2430)](https://v.douyin.com/VWh0M03Fa4Y/) [![RedNote](https://img.shields.io/badge/RedNote-notes-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white&labelColor=1f2430)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-chat-%235865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1f2430)](https://discord.gg/pz97SfAfSy) [![GitHub](https://img.shields.io/github/discussions/BOWLUNA/dsh-multi-instance?label=GitHub&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-multi-instance/discussions)
 
@@ -113,10 +113,14 @@ From [Releases](https://github.com/BOWLUNA/dsh-multi-instance/releases):
 
 ```bash
 npm i -g dsh-multi-instance   # then run: dsh-multi-instance
+dsh-multi-instance --version  # confirm what you got (works without Electron)
+dsh-multi-instance --help     # every switch
 ```
 
 > The npm route needs an Electron runtime first (`npm i -g electron`). The packaged exe builds need
 > **no** prerequisites at all.
+> `--version` and `--help` are the only two switches that work **without** Electron — run them right
+> after installing, so you are not guessing after a failed launch.
 
 ### Option 3 — run from source
 
@@ -327,8 +331,9 @@ Launch (pick one):
 npm test              # plain Node — no GUI, no Electron required
 ```
 
-Covers the **pure logic**: user-data location and migration, instance address resolution, and the npm
-entry point's runtime lookup. Window behaviour and renderer interaction still need `--selftest*`, which
+Covers the **pure logic**: user-data location and migration, config read/write + backup + corruption
+recovery, instance address resolution, and the npm entry point's argument parsing and runtime lookup.
+Zero dependencies, plain Node. Window behaviour and renderer interaction still need `--selftest*`, which
 require a real window.
 
 > Why the split: the `--selftest*` switches need a real window, so in a headless environment (CI, SSH,
@@ -379,11 +384,27 @@ Artifacts land in `dist/`.
 | Content | Path |
 | --- | --- |
 | User config (instance list, pane arrangement) | `config.json` in the app data directory |
+| Automatic config backups (last 3) | `config.json.bak-1` … `bak-3` in the same directory |
+| Preserved fragment of a corrupted config | `config.json.corrupt-<timestamp>` in the same directory |
 | Per-pane login state (browser partitions) | `Partitions/` in the app data directory |
 | Main-process log | `logs/main.log` in the app data directory |
 
 On Windows the app data directory is `%APPDATA%\dsh-multi-instance\` — **the same location for dev runs and
 packaged builds**.
+
+**How the config protects itself** (relevant if you have ever lost it): before every overwrite of
+`config.json`, the **last parseable** content is rolled into `bak-1` (the older ones shift back, 3 kept).
+When the file cannot be parsed, the fragment on hand is first preserved verbatim as
+`config.json.corrupt-<timestamp>`, then the newest valid backup is restored **and written back to the main
+file** (self-healing). Both actions land in the log:
+
+```
+[store] 配置损坏，残片已保留: config.json.corrupt-2026-09-24T05-31-02-123Z（32 字节）
+[store] 已从 config.json.bak-1 回退配置并写回主文件
+```
+
+So "my instance list is suddenly empty" is no longer a dead end — do not touch the files first, check
+`logs/main.log` for those two lines; `bak-1` is normally the version you want back.
 
 > **The location is pinned, not derived.** Electron would default it to `<appData>/<app name>`, where the
 > name comes from `package.json`'s `name` in development and from `productName` when packaged — leave it
@@ -449,6 +470,11 @@ its `config.json` into `%APPDATA%\dsh-multi-instance\` by hand (with the app clo
 (0.2.0 and earlier had a drifting location: dev runs and packaged builds wrote to different directories. The
 `userData=` log line is the authoritative answer.)
 
+**From 0.4.0 the config keeps its own backups.** Seeing `config.json.bak-1` / `bak-2` / `bak-3` is normal
+(one shift per write). Seeing `config.json.corrupt-<timestamp>` means the file was once unreadable — that
+file is the **verbatim fragment**, do not delete it. The log carries the matching two lines, and `bak-1` is
+usually the version you want: close the app, copy `config.json.bak-1` over `config.json`, start again.
+
 ---
 
 ## Known limitations
@@ -477,7 +503,7 @@ its `config.json` into `%APPDATA%\dsh-multi-instance\` by hand (with the app clo
 ```
 .
 ├── package.json
-├── bin/cli.js                           npm entry point (finds electron and launches the app)
+├── bin/cli.js                           npm entry point (--version / --help + finds electron and launches the app)
 ├── build/icon.ico                       app icon
 ├── start.cmd / start.vbs / start.sh     launchers (pick one)
 ├── tests/run.js                         plain-Node test suite (npm test)
@@ -490,7 +516,7 @@ its `config.json` into `%APPDATA%\dsh-multi-instance\` by hand (with the app clo
     │   ├── instances.js   instance model: address resolution, start/stop, reachability probe
     │   ├── discovery.js   discovery: process/port scan + dsh executable scan + common-dir scan
     │   ├── installer.js   manual installer (dsh is never bundled)
-    │   └── store.js       JSON config I/O
+    │   └── store.js       JSON config I/O: atomic write + rolling backups + corruption recovery
     ├── preload/preload.js whitelisted IPC bridge
     └── renderer/
         ├── index.html

@@ -11,7 +11,8 @@
  *   用法：  npm test
  *   约定：  零依赖、纯 Node、退出码即结论（0 = 全过）。
  *
- * 覆盖的是**纯逻辑**：目录落点与迁移、地址解析、CLI 的运行时查找。
+ * 覆盖的是**纯逻辑**：目录落点与迁移、配置读写的备份与损坏恢复、地址解析、
+ * CLI 的参数解析与运行时查找。
  * 窗口行为、渲染层交互仍然只能靠 `--selftest*`（需要 GUI）。
  */
 
@@ -22,6 +23,7 @@ const path = require('path');
 
 const appdata = require('../src/main/appdata');
 const instances = require('../src/main/instances');
+const Store = require('../src/main/store');
 const cli = require('../bin/cli');
 
 let passed = 0;
@@ -260,6 +262,207 @@ test('bootstrap 返回钉死的 userData，且等于传入值', () => {
 });
 
 // ================================================================ bin/cli
+
+suite('store · 配置的读写、备份与损坏恢复');
+
+/** 造一个只属于自己的配置目录 */
+function storeDir() {
+  return sandbox();
+}
+
+test('读写往返：set 之后新建实例能读回来', () => {
+  const file = path.join(storeDir(), 'config.json');
+  const a = new Store(file, { log: () => {} });
+  a.set('instances', [{ id: 'i1' }]);
+  const b = new Store(file, { log: () => {} });
+  assert.deepStrictEqual(b.get('instances'), [{ id: 'i1' }]);
+  assert.strictEqual(b.recoveredFrom, null);
+  assert.strictEqual(b.quarantined, null);
+});
+
+test('首次写入不产生备份（还没有旧内容可留）', () => {
+  const file = path.join(storeDir(), 'config.json');
+  new Store(file, { log: () => {} }).set('ui', { theme: 'light' });
+  assert.ok(fs.existsSync(file));
+  assert.ok(!fs.existsSync(Store.backupPath(file, 1)));
+});
+
+test('第二次写入前，把能解析的旧内容留成 bak-1', () => {
+  const file = path.join(storeDir(), 'config.json');
+  const s = new Store(file, { log: () => {} });
+  s.set('instances', ['第一版']);
+  s.set('instances', ['第二版']);
+  const bak = JSON.parse(fs.readFileSync(Store.backupPath(file, 1), 'utf8'));
+  assert.deepStrictEqual(bak.instances, ['第一版']);
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(file, 'utf8')).instances, ['第二版']);
+});
+
+test(`备份最多保留 ${Store.BACKUP_KEEP} 份，最老的被挤掉`, () => {
+  const file = path.join(storeDir(), 'config.json');
+  const s = new Store(file, { log: () => {} });
+  for (let i = 1; i <= Store.BACKUP_KEEP + 3; i += 1) s.set('n', i);
+  for (let i = 1; i <= Store.BACKUP_KEEP; i += 1) {
+    assert.ok(fs.existsSync(Store.backupPath(file, i)), `缺 bak-${i}`);
+  }
+  assert.ok(!fs.existsSync(Store.backupPath(file, Store.BACKUP_KEEP + 1)), 'bak-N+1 不该存在');
+  // bak-1 应当就是刚被覆盖的那一版
+  assert.strictEqual(JSON.parse(fs.readFileSync(Store.backupPath(file, 1), 'utf8')).n, Store.BACKUP_KEEP + 3 - 1);
+});
+
+test('★ 配置损坏 → 从 bak-1 回退，并写回主文件（自愈）', () => {
+  const file = path.join(storeDir(), 'config.json');
+  const s = new Store(file, { log: () => {} });
+  s.set('instances', [{ id: 'i1' }, { id: 'i2' }]);
+  s.set('ui', { theme: 'dark' }); // 这一步产生 bak-1（含 instances）
+  fs.writeFileSync(file, '{"instances":[{"id":"i1"', 'utf8'); // 半截 JSON
+
+  const recovered = new Store(file, { log: () => {} });
+  assert.strictEqual(recovered.get('instances').length, 2);
+  assert.ok(recovered.recoveredFrom, '应当记录回退来源');
+  assert.deepStrictEqual(
+    JSON.parse(fs.readFileSync(file, 'utf8')).instances,
+    [{ id: 'i1' }, { id: 'i2' }],
+    '回退结果要写回主文件'
+  );
+  assert.ok(!fs.existsSync(file + '.tmp'), '不留下临时文件');
+});
+
+test('★ 配置损坏且没有任何备份 → 残片必须被保留，不能静默抹掉', () => {
+  const file = path.join(storeDir(), 'config.json');
+  fs.writeFileSync(file, '{"instances":[1,2,3],"panes":[1,', 'utf8');
+  const broken = '{"instances":[1,2,3],"panes":[1,';
+  const s = new Store(file, { log: () => {} });
+  assert.deepStrictEqual(s.all(), {}, '按空配置继续');
+  assert.ok(s.quarantined, '应当留下隔离文件');
+  assert.strictEqual(fs.readFileSync(s.quarantined, 'utf8'), broken, '残片内容要原样保留');
+
+  s.set('ui', { theme: 'light' }); // 这次写入会覆盖主文件
+  assert.strictEqual(
+    fs.readFileSync(s.quarantined, 'utf8'),
+    broken,
+    '覆盖主文件后，残片仍然可读（这就是与旧行为的关键差别）'
+  );
+  assert.ok(
+    JSON.parse(fs.readFileSync(file, 'utf8')).ui.theme === 'light',
+    '主文件已被新内容重建'
+  );
+});
+
+test('坏盘不会污染备份链：当前文件损坏时不写 bak-1', () => {
+  const file = path.join(storeDir(), 'config.json');
+  const s = new Store(file, { log: () => {} });
+  s.set('instances', ['好的一版']);
+  s.set('ui', {}); // bak-1 = 含 instances 的那一版
+  const goodBak = fs.readFileSync(Store.backupPath(file, 1), 'utf8');
+
+  fs.writeFileSync(file, 'not json at all', 'utf8');
+  new Store(file, { log: () => {} }).set('ui', { theme: 'dark' });
+  assert.strictEqual(
+    fs.readFileSync(Store.backupPath(file, 1), 'utf8'),
+    goodBak,
+    'bak-1 应当还是那份好配置，而不是刚坏掉的内容'
+  );
+});
+
+test('目录不存在时也能建起来（首次启动）', () => {
+  const file = path.join(storeDir(), 'deep', 'nested', 'config.json');
+  const s = new Store(file, { log: () => {} });
+  s.set('instances', []);
+  assert.ok(fs.existsSync(file));
+});
+
+test('文件不存在 → 空配置，且不产生隔离文件', () => {
+  const file = path.join(storeDir(), 'config.json');
+  const s = new Store(file, { log: () => {} });
+  assert.deepStrictEqual(s.all(), {});
+  assert.strictEqual(s.quarantined, null);
+  assert.strictEqual(s.readError, null, 'ENOENT 不算错误');
+});
+
+test('get 的兜底值只在键不存在时生效', () => {
+  const file = path.join(storeDir(), 'config.json');
+  fs.writeFileSync(file, JSON.stringify({ a: null, b: 0 }), 'utf8');
+  const s = new Store(file, { log: () => {} });
+  assert.strictEqual(s.get('a', 'fallback'), null, '键在但值是 null → 返回 null');
+  assert.strictEqual(s.get('b', 9), 0);
+  assert.strictEqual(s.get('missing', 'fallback'), 'fallback');
+});
+
+test('parseObject 只认「对象」，数组 / null / 标量都不算配置', () => {
+  assert.deepStrictEqual(Store.parseObject('{"a":1}'), { a: 1 });
+  assert.strictEqual(Store.parseObject('[1,2]'), null);
+  assert.strictEqual(Store.parseObject('null'), null);
+  assert.strictEqual(Store.parseObject('"str"'), null);
+  assert.strictEqual(Store.parseObject('42'), null);
+  assert.strictEqual(Store.parseObject('{oops'), null);
+  assert.strictEqual(Store.parseObject(''), null);
+});
+
+test('备份 / 残片文件名可预期（便于用户手工抢救）', () => {
+  assert.ok(Store.backupPath('/x/config.json', 1).endsWith('config.json.bak-1'));
+  assert.ok(Store.quarantinePath('/x/config.json').startsWith('/x/config.json.corrupt-'));
+  const fixed = Store.quarantinePath('/x/config.json', new Date('2026-09-24T05:31:02.123Z'));
+  assert.strictEqual(fixed, '/x/config.json.corrupt-2026-09-24T05-31-02-123Z', '时间戳里不留冒号（Windows 文件名禁用）');
+});
+
+test('写失败不抛异常（目录被占）', () => {
+  const s = new Store(path.join(storeDir(), 'config.json'), {
+    log: () => {},
+    fs: {
+      readFileSync: () => {
+        throw Object.assign(new Error('nope'), { code: 'EACCES' });
+      },
+      mkdirSync: () => {},
+      writeFileSync: () => {
+        throw new Error('EACCES');
+      },
+      renameSync: () => {},
+      existsSync: () => false,
+      rmSync: () => {},
+    },
+  });
+  assert.doesNotThrow(() => s.set('a', 1));
+  assert.strictEqual(s.get('a'), 1, '内存里仍然生效');
+});
+
+suite('bin/cli · 参数解析（--version / --help）');
+
+test('--version 与 -v 都只要版本，不启动应用', () => {
+  assert.strictEqual(cli.parseArgs(['--version']).action, 'version');
+  assert.strictEqual(cli.parseArgs(['-v']).action, 'version');
+  assert.strictEqual(cli.parseArgs(['-V']).action, 'version');
+});
+
+test('--help / -h / help 都只要用法', () => {
+  assert.strictEqual(cli.parseArgs(['--help']).action, 'help');
+  assert.strictEqual(cli.parseArgs(['-h']).action, 'help');
+  assert.strictEqual(cli.parseArgs(['help']).action, 'help');
+});
+
+test('应用自己的开关原样透传（--demo / --selftest 不受影响）', () => {
+  assert.deepStrictEqual(cli.parseArgs(['--demo', '--demo-zone=4']).passthrough, [
+    '--demo',
+    '--demo-zone=4',
+  ]);
+  assert.strictEqual(cli.parseArgs([]).action, 'run');
+  assert.deepStrictEqual(cli.parseArgs([]).passthrough, []);
+});
+
+test('`--` 之后的 --version 是字面量，不再被当成选项', () => {
+  const got = cli.parseArgs(['--', '--version']);
+  assert.strictEqual(got.action, 'run');
+  assert.deepStrictEqual(got.passthrough, ['--version']);
+});
+
+test('版本行与用法里都不留没替换的占位符', () => {
+  assert.match(cli.versionText(), /^dsh-multi-instance \d+\.\d+\.\d+\n$/);
+  const help = cli.helpText();
+  for (const bad of ['<repo>', 'undefined', 'NaN', '[object']) {
+    assert.ok(!help.includes(bad), `用法里不该出现 ${bad}`);
+  }
+  assert.ok(help.includes('--selftest'), '用法里要列出自检开关');
+  assert.ok(help.includes(cli.VERSION), '用法里要带版本号');
+});
 
 suite('bin/cli · Electron 运行时查找');
 

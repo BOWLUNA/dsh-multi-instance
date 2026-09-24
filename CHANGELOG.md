@@ -5,6 +5,44 @@
 
 ## [未发布]
 
+## [0.4.0] — 2026-09-24
+
+### 修复
+
+- **配置损坏会被静默抹掉（P1）**。`store.js` 读不出 `config.json` 时只打一行日志、按空配置继续，
+  而**紧接着任何一次写入（改主题、拖动窗格）都会用这份空配置把原文件覆盖掉** ——
+  目录里既没有备份也没有残片，用户唯一的实例列表与排布就此消失。
+  探针实测（修复前）：残片 32 字节 → 一次 `set()` 之后主文件变成 38 字节的新内容，
+  目录里只有 `config.json` 一个文件，无从恢复。
+  现在改为：写前把**上一位能解析的**内容滚成 `config.json.bak-1`（保留 3 份）；
+  读不出来时先把手上的残片原样存成 `config.json.corrupt-<时间戳>`，再从最近的备份回退，
+  并把回退结果写回主文件（自愈）；两个动作都会写进 `logs/main.log`。
+  复验（修复后）：坏盘 + 无备份 → 残片字节级保留；坏盘 + 有 `bak-1` → 实例列表原样回来。
+- 备份链只收**能解析的**内容 —— 否则一次坏盘会把好备份一路挤掉，让「回退」退到另一个坏文件上。
+- `store.js` 的日志接到主日志流：以前它写的是 `console.error`（打包版看不见），
+  现在「实例列表怎么空了」在 `logs/main.log` 里查得到。
+- npm 入口的 `--version` / `--help` 之前会被当成 Electron 参数透传 —— 两条命令什么都不打印。
+
+### 新增
+
+- **`dsh-multi-instance --version` / `-v`**、**`--help` / `-h`**。这两条**不需要 Electron** 就能用
+  （参数解析排在「找 Electron」之前）—— 用户装完包的第一个动作不该先撞上「找不到运行时」。
+  `--help` 列出全部开关；`--` 之后的参数一律当字面量透传。
+- `.gitattributes`：显式声明二进制资产（PNG / ICO / zip / exe …）。
+  这不是模板搬运 —— 本项目曾经把 README 的 PNG 与图标 ICO 当文本处理过，图全花了，
+  只好写脚本重建 blob（`d8eb824`）。git 的自动检测只在 add 时生效，挡不住 patch / API 通道。
+- `.editorconfig`：与上一条配套，统一编码与换行符。
+- `.github/dependabot.yml`：electron / electron-builder 每周汇总成一个 PR，Actions 每月一次。
+- `tests/run.js`：36 条 → **54 条**。新增 13 条覆盖配置的读写/备份轮转/损坏回退/残片保留，
+  5 条覆盖 CLI 参数解析。
+
+### 变更
+
+- README 徽章行以 **GitHub Release 版本为准**（npm 徽章移到末位并标注 `placeholder`）
+  —— 之前首页显示的是 npm 上那个 `0.0.1` 占位包，与仓库实际版本对不上。
+- README 中英双侧补：`--version` / `--help` 用法、配置备份与残片的说明、
+  「实例列表突然空了」的抢救步骤、测试覆盖范围。
+
 ## [0.3.0] — 2026-09-23
 
 ### 修复
@@ -70,6 +108,7 @@
 
 - **占位版本**，内容为空壳。仅用于占住 npm 上的包名，请以 GitHub 仓库为准。
 
-[未发布]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.3.0...HEAD
+[未发布]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/BOWLUNA/dsh-multi-instance/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/BOWLUNA/dsh-multi-instance/releases/tag/v0.2.0

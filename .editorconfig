@@ -1,0 +1,27 @@
+# 编辑器统一口径。与 .gitattributes 配套：换行符、编码、缩进在两侧保持一致。
+# 本仓库索引里全是 LF —— 这里的 end_of_line 只是让编辑器别再往文件里塞 CRLF。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# Markdown 里行尾两个空格是有意义的硬换行，别自动删掉
+[*.md]
+trim_trailing_whitespace = false
+
+# 启动器：Windows 上双击运行，保持现状（仓库里一直是 LF）
+[{*.cmd,*.bat,*.vbs}]
+insert_final_newline = true
+
+[*.{yml,yaml}]
+indent_size = 2
+
+# 手工维护的截图脚本 / 社交预览图脚本，缩进 4 空格的是 Python
+[*.py]
+indent_size = 4
