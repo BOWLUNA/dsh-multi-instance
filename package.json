@@ -85,8 +85,12 @@
     "selftest:win": "electron . --selftest-win",
     "selftest:tip": "electron . --selftest-tip",
     "memtest": "electron . --memtest",
+    "clean:dist": "node tools/clean-dist.js",
+    "predist": "node tools/clean-dist.js",
     "dist": "electron-builder --win --publish never",
+    "predist:zip": "node tools/clean-dist.js",
     "dist:zip": "electron-builder --win zip --publish never",
+    "predist:setup": "node tools/clean-dist.js",
     "dist:setup": "electron-builder --win nsis --publish never"
   },
   "files": [

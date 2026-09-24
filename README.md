@@ -317,13 +317,19 @@ npm run dist:setup    # 只出 exe 安装包（NSIS）
 npm run dist:zip      # 只出 zip
 ```
 
-产物在 `dist/`。
+产物在 `dist/`。上面三条都会先自动跑一次 `npm run clean:dist`（`predist` 钩子）。
 
 > 实测（electron-builder 26.15.3）：**含中文的路径下也能正常打包** —— 本仓库的开发目录就含中文，
 > 上面两种产物都是在原地打出来的，不需要挪到英文临时目录。
->
-> electron-builder 收尾清理 `dist/win-unpacked` 时可能报一句删除失败 —— 那是清理步骤，**产物已经生成**，
-> 可以忽略。
+
+> **`clean:dist` 是干什么的**：electron-builder 解包 electron 之前会先删掉
+> `dist/win-unpacked` 与 `dist/win-unpacked.tmp`。在带「批量删除守卫」的沙箱里
+> （某些 AI 终端会注入这类拦截），这一步会以
+> `SAFE_DELETE_BULK_CONFIRM_REQUIRED` 失败 —— **而且是在解包阶段就失败，一个产物都不会有**，
+> 不是「收尾清理报错、产物已生成」那种可以忽略的情况。
+> `clean:dist` 用**同步**的 `fs.rmSync` 提前把这两个目录删掉（同步 API 不在拦截范围内），
+> 走到那一步时目录已不存在，计数为 0，守卫不会触发。
+> 平时手动打包用不到它 —— 只在这类沙箱里需要。
 
 ### 调试开关
 

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-multi-instance —— DeepSeek Harness 多实例桌面客户端</title>
+<meta name="description" content="把 dsh web 装进桌面窗口的多实例壳：本机、WSL2、远程服务器上的 DSH 都能接，多窗口自由排布，每格独立会话。">
+<meta property="og:type" content="website">
+<meta property="og:title" content="dsh-multi-instance —— DSH 多开桌面客户端">
+<meta property="og:description" content="把 dsh web 装进原生 webview 窗口，按 URL 接入任意多个 DSH 实例。分屏平铺、自由排布、每格独立会话。">
+<meta property="og:image" content="images/social-preview.png">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --paper: #f7f4ec;
+    --paper-2: #fbf9f3;
+    --ink: #2b2925;
+    --ink-2: #5a554c;
+    --ink-3: #8b8578;
+    --rule: #ddd6c6;
+    --olive: #6d7a4d;
+    --ochre: #ad7c39;
+    --radius: 3px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background-color: var(--paper);
+    /* 半调网点：很淡，只负责质感 */
+    background-image: radial-gradient(rgba(43,41,37,.055) 1px, transparent 1px);
+    background-size: 9px 9px;
+    color: var(--ink);
+    font: 16px/1.75 "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  }
+  a { color: var(--ink); text-decoration: none; border-bottom: 1px solid rgba(109,122,77,.5); }
+  a:hover { border-bottom-color: var(--olive); color: #1d1c19; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 22px; }
+
+  header.hero { padding: 58px 0 34px; }
+  .eyebrow {
+    font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--ink-3);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .eyebrow::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+  h1 { font-size: clamp(30px, 5.4vw, 46px); line-height: 1.15; margin: 20px 0 14px; letter-spacing: -.01em; font-weight: 700; }
+  h1 .sub { display: block; font-size: .46em; font-weight: 400; color: var(--ink-2); margin-top: 14px; letter-spacing: 0; }
+  .lede { font-size: 17px; color: var(--ink-2); max-width: 62ch; margin: 0 0 26px; }
+  .lede b { color: var(--ink); }
+
+  /* 按钮不跳脱：与卡片同色系，只靠边框与纸色渐变区分 */
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 40px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 10px 18px; border: 1px solid var(--rule); border-radius: var(--radius);
+    background-image: linear-gradient(rgba(255,255,255,.75), rgba(255,255,255,0));
+    background-color: var(--paper-2);
+    font-size: 14.5px; color: var(--ink); border-bottom: 1px solid var(--rule);
+  }
+  .btn:hover { background-color: #fff; border-color: #c9c1ae; }
+  .btn small { color: var(--ink-3); font-size: 12px; }
+
+  .shot { border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; background: var(--paper-2); }
+  .shot img { display: block; width: 100%; height: auto; }
+
+  section { padding: 44px 0; border-top: 1px solid var(--rule); }
+  h2 { font-size: 21px; margin: 0 0 8px; letter-spacing: -.01em; }
+  h2 .n {
+    font: 600 12px/1 ui-monospace, Menlo, Consolas, monospace; color: var(--ochre);
+    margin-right: 10px; vertical-align: 2px;
+  }
+  .note { color: var(--ink-2); margin: 0 0 24px; font-size: 15px; }
+
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .card {
+    border: 1px solid var(--rule); border-radius: var(--radius); padding: 16px 17px;
+    background-color: var(--paper-2);
+  }
+  .card h3 { margin: 0 0 6px; font-size: 15.5px; }
+  .card p { margin: 0; font-size: 14px; color: var(--ink-2); }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .grid2 .shot { margin: 0; }
+  .grid2 figcaption { font-size: 13px; color: var(--ink-3); margin-top: 7px; }
+
+  ul.tight { margin: 0; padding-left: 1.1em; }
+  ul.tight li { margin: 7px 0; color: var(--ink-2); font-size: 15px; }
+  ul.tight li b { color: var(--ink); }
+
+  pre {
+    margin: 0 0 18px; padding: 15px 16px; overflow-x: auto;
+    background: var(--paper-2); border: 1px solid var(--rule); border-radius: var(--radius);
+    font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink);
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
+  .kv { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .kv th, .kv td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .kv th { width: 9.5em; font-weight: 600; color: var(--ink); }
+  .kv td { color: var(--ink-2); }
+
+  footer { padding: 34px 0 56px; border-top: 1px solid var(--rule); color: var(--ink-3); font-size: 13.5px; }
+  footer a { color: var(--ink-2); }
+  .disclaimer { margin-top: 12px; max-width: 70ch; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">DeepSeek Harness · 桌面套壳</div>
+    <h1>
+      dsh-multi-instance
+      <span class="sub">把 <code>dsh web</code> 装进桌面窗口，多个实例并排跑，互不干扰。</span>
+    </h1>
+    <p class="lede">
+      一个 <b>多实例、多窗口</b>的桌面客户端：本机、WSL2、或服务器上只有 URL 的远程 DSH 都能接。
+      每个实例各占一个窗格，自由排布与缩放；<b>每格有自己的浏览器会话</b> —— 多开不再互相踩 cookie。
+    </p>
+    <div class="actions">
+      <a class="btn" href="https://github.com/BOWLUNA/dsh-multi-instance/releases/latest">下载安装包 <small>exe / zip</small></a>
+      <a class="btn" href="https://github.com/BOWLUNA/dsh-multi-instance">GitHub 仓库 <small>源码 · MIT</small></a>
+      <a class="btn" href="https://github.com/BOWLUNA/dsh-multi-instance/discussions">讨论区 <small>排布方案 / 接哪台机器</small></a>
+    </div>
+    <div class="shot">
+      <img src="images/header.png" alt="dsh-multi-instance 界面：左侧实例抽屉 + 多窗格画布">
+    </div>
+  </header>
+
+  <section>
+    <h2><span class="n">01</span>它解决什么</h2>
+    <p class="note">
+      dsh 自带的 Web 界面很好用，但一次只能看一处。当你同时盯着本机 WSL 里的一处和服务器上的另一处时，
+      浏览器标签页就不够用了：分不清哪个是哪个、cookie 互相覆盖、排布全靠手拉。
+    </p>
+    <div class="cols">
+      <div class="card">
+        <h3>接</h3>
+        <p>把每一处 dsh 当成一个「实例」管起来 —— WSL2 里的、Windows 本机的、远端只有 URL 的服务器。</p>
+      </div>
+      <div class="card">
+        <h3>排</h3>
+        <p>每个实例开成一个窗格：拖动、缩放、吸附、1/2 · 1/3 · 1/4 一键分区，排布结果记住。</p>
+      </div>
+      <div class="card">
+        <h3>隔</h3>
+        <p>每个窗格是独立的浏览器 partition，cookie 与 localStorage 互不干扰；重启不用重新认证。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">02</span>看几张图</h2>
+    <p class="note">窗格上没有边框也没有标题栏 —— 拿到的画面就是全部。操作靠悬停滑出的气泡把手。</p>
+    <div class="grid2">
+      <figure class="shot">
+        <img src="images/03-tile.png" alt="多窗格平铺">
+        <figcaption>多窗格平铺：一屏放几个 DSH，各自独立窗格</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/05-many.png" alt="自由排布 8 个实例">
+        <figcaption>自由排布：拖动缩放、自动吸附、退出后原样恢复</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/04-zone.png" alt="1/4 分区光晕">
+        <figcaption>一键分区：点 1/2 · 1/3 · 1/4 出光晕，其余窗格自动填剩余格</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="images/06-instance.png" alt="实例设置">
+        <figcaption>实例设置：本机端口 / WSL2 发行版 / 远程地址与 token</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">03</span>安装</h2>
+    <table class="kv">
+      <tr>
+        <th>推荐</th>
+        <td>
+          ［<a href="https://github.com/BOWLUNA/dsh-multi-instance/releases/latest">Releases</a>］里两个文件二选一：
+          <code>DSH.Multi-Instance-Setup-x.y.z.exe</code>（安装包，可选目录、建快捷方式）、
+          <code>DSH.Multi-Instance-x.y.z-x64.zip</code>（免安装，解压即用）。需要 Windows 10/11。
+        </td>
+      </tr>
+      <tr>
+        <th>npm</th>
+        <td>
+          目前 npm 上只有 <code>0.0.1</code> 占位包，<b>可用版本还没发上去</b> —— 在那之前请用上面那种或从源码跑。
+        </td>
+      </tr>
+      <tr>
+        <th>从源码</th>
+        <td>
+<pre>git clone https://github.com/BOWLUNA/dsh-multi-instance.git
+cd dsh-multi-instance
+npm install
+npm start</pre>
+        </td>
+      </tr>
+    </table>
+    <p class="note" style="margin:20px 0 0">
+      软件本身<b>不含 dsh</b>：装完在界面里点「下载实例」，或者接你已有的 DSH。它不会在后台偷偷下载任何东西。
+    </p>
+  </section>
+
+  <section>
+    <h2><span class="n">04</span>还做了什么</h2>
+    <ul class="tight">
+      <li><b>自动发现</b>：扫 PATH、npm 全局目录、用户目录（4 层内）、各盘根（2 层内）—— 实测 5441 个目录约 300ms。
+          刻意<b>不扫全盘</b>（隐私），界面上会写明这次扫了哪些地方。</li>
+      <li><b>内置安装器</b>：界面上选版本、npm 源、端口，直接装一份 dsh。实测 565 个包约 4 分钟。</li>
+      <li><b>隐藏抽屉</b>：上侧工具栏与左侧实例栏平时全收起，画布只剩 3px 边距；展开时窗格整体让位，不遮盖内容。</li>
+      <li><b>浅色 / 深色 / 跟随系统</b>，中英双语。</li>
+      <li><b>配置自己会留备份</b>：每次覆盖前把上一版滚成 <code>config.json.bak-1</code>（留 3 份）；
+          文件读不出来时先原样保留残片，再从备份回退并写回主文件。</li>
+      <li><b>可无头跑的测试</b>：<code>npm test</code> 零依赖、纯 Node，不需要图形界面。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span>说清楚限制</h2>
+    <ul class="tight">
+      <li><b>仅 Windows</b>。Electron 本身跨平台，但无边框窗口与边缘热区是照 Windows 调的，其他平台未验证。</li>
+      <li><b>一个窗格约 241MB 内存</b>（实测 12 个窗格 = 17 个进程 / 2897MB）。收进侧栏的窗格不占内存。</li>
+      <li><b>发现只扫常见位置</b>，装在冷门深处的找不到 —— 手动加即可。</li>
+      <li>窗格顶部中央 20px 是拖动把手的热区，点不到那里 DSH 页面的东西。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="n">06</span>相关</h2>
+    <table class="kv">
+      <tr><th>DeepSeek Harness</th><td>上游。本项目只消费它的 Web 界面，不修改本体，也不代表官方立场。</td></tr>
+      <tr><th>dsh-custom-mode</th><td>同作者的 DSH 插件：一套系统提示词的管理、切换与分享。与这个壳互补。</td></tr>
+      <tr><th>完整文档</th><td>
+        <a href="https://github.com/BOWLUNA/dsh-multi-instance/blob/main/README.md">README（中文）</a> ·
+        <a href="https://github.com/BOWLUNA/dsh-multi-instance/blob/main/README.en.md">README (English)</a> ·
+        <a href="https://github.com/BOWLUNA/dsh-multi-instance/blob/main/CHANGELOG.md">更新日志</a>
+      </td></tr>
+    </table>
+  </section>
+
+  <footer>
+    <div>MIT License · © 2026 BOWLUNA</div>
+    <div class="disclaimer">
+      本项目是独立的第三方外壳，与 DeepSeek 官方无隶属关系。它不改 <code>~/.dsh</code> 下的任何凭证文件，
+      也不捆绑、不自动下载 dsh。
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>
