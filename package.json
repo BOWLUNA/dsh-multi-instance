@@ -149,7 +149,7 @@
     "asar": true
   },
   "devDependencies": {
-    "electron": "40.10.2",
+    "electron": "44.4.3",
     "electron-builder": "^26.15.3"
   },
   "engines": {
