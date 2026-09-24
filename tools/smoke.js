@@ -31,6 +31,8 @@
  *   node tools/smoke.js --keep          # 失败也保留 .tmp/smoke 供事后翻看
  *   node tools/smoke.js --scene=empty   # 空画布（引导态）
  *   node tools/smoke.js --scene=tile    # 4 个窗格平铺
+ *   node tools/smoke.js --exe="dist/win-unpacked/DSH Multi-Instance.exe"
+ *                                       # ★ 直接验打包产物（发出去的那个 exe 能不能跑）
  *   node tools/smoke.js --electron=<path>
  *
  * 退出码：0 = 全部通过；1 = 有断言失败（CI 可直接当门禁）。
@@ -75,7 +77,16 @@ function check(cond, what, detail) {
 // ---------------------------------------------------------------- Electron 定位
 
 function resolveElectron() {
-  if (argValue('electron')) return argValue('electron');
+  // 直接验打包产物：`node tools/smoke.js --exe="dist/win-unpacked/DSH Multi-Instance.exe"`。
+  // 这条路径重要 —— 「源码能跑」和「发出去的那个 exe 能跑」是两件事：
+  // 后者的 main.js 是从 app.asar 里读的，漏文件、漏资源都只会在这条路径上现形。
+  const exe = argValue('exe');
+  if (exe) {
+    const abs = path.isAbsolute(exe) ? exe : path.join(ROOT, exe);
+    if (!fs.existsSync(abs)) return { error: `打包产物不存在：${abs}（先 npm run dist）` };
+    return { path: abs, packaged: true };
+  }
+  if (argValue('electron')) return { path: argValue('electron') };
   let p;
   try {
     // 在**纯 Node** 里 require('electron') 返回的就是二进制绝对路径（字符串）
@@ -174,28 +185,37 @@ async function main() {
     bad('定位 Electron 二进制', el.error);
     return finish();
   }
-  ok(`Electron 二进制就位：${el.path}`);
+  const packaged = !!el.packaged;
+  ok(packaged ? `打包产物就位：${el.path}` : `Electron 二进制就位：${el.path}`);
 
   // 版本对齐：package.json 里写的 devDependency 必须就是实际跑的这一个。
   // 注意 npm 可能存成 `^44.4.3`，比较前把范围前缀剥掉 —— 这里比的是「装的是不是这个版本」。
+  // 跑打包产物时跳过磁盘那一版（那时用的是 electron-builder 塞进去的 dist，
+  // 下面「运行时 electron=…」那条才是真正的证据）。
   const want = String(require(path.join(ROOT, 'package.json')).devDependencies.electron).replace(
     /^[\^~>=<v\s]+/,
     ''
   );
-  const binDir = path.dirname(el.path);
-  const pkgJson = path.join(binDir, '..', 'package.json');
-  let actual = '';
-  try {
-    actual = JSON.parse(fs.readFileSync(pkgJson, 'utf8')).version || '';
-  } catch {
-    /* 读不到就跳过这条比对，下面还有运行时那一版兜底 */
-  }
-  if (actual) {
-    check(
-      actual === want,
-      `Electron 版本与 package.json 一致（${actual}）`,
-      `package.json 写的是 ${want}，实际装的是 ${actual}`
-    );
+  if (packaged) {
+    // PE 校验：别把「文件在那儿」当成「文件能用」
+    const head = fs.readFileSync(el.path).subarray(0, 2).toString('latin1');
+    check(head === 'MZ', '打包产物是有效的 PE 可执行文件', `文件头是 ${JSON.stringify(head)}，不是 MZ`);
+  } else {
+    const binDir = path.dirname(el.path);
+    const pkgJson = path.join(binDir, '..', 'package.json');
+    let actual = '';
+    try {
+      actual = JSON.parse(fs.readFileSync(pkgJson, 'utf8')).version || '';
+    } catch {
+      /* 读不到就跳过这条比对，下面还有运行时那一版兜底 */
+    }
+    if (actual) {
+      check(
+        actual === want,
+        `Electron 版本与 package.json 一致（${actual}）`,
+        `package.json 写的是 ${want}，实际装的是 ${actual}`
+      );
+    }
   }
 
   const fake = await startFakeDsh();
@@ -214,24 +234,25 @@ async function main() {
   ok(`已预置配置（${n} 个实例）：${path.relative(ROOT, userData)}`);
 
   const shot = path.join(TMP, 'smoke.png');
-  const args = [
-    ROOT,
+  const args = [];
+  if (!packaged) args.push(ROOT); // 开发态要显式指定应用目录；打包产物自己知道
+  args.push(
     '--verbose',
     `--shot=${shot}`,
     '--shot-delay=3500',
     '--shot-exit',
-    `--eval=${PROBE}`,
-  ];
+    `--eval=${PROBE}`
+  );
   if (n > 0) args.push('--demo');
 
-  console.log(`\n  启动：${path.basename(el.path)} ${args.slice(1).join(' ')}\n`);
+  console.log(`\n  启动：${path.basename(el.path)} ${args.join(' ')}\n`);
 
   const run = await new Promise((resolve) => {
     let out = '';
     let err = '';
     let done = false;
     const child = spawn(el.path, args, {
-      cwd: ROOT,
+      cwd: packaged ? path.dirname(el.path) : ROOT,
       env: childEnv({ APPDATA: appData, LOCALAPPDATA: path.join(appData, 'Local') }),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
