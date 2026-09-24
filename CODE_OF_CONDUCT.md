@@ -1,5 +1,10 @@
 # 行为准则 / Code of Conduct
 
+> **English readers:** this document is maintained in Chinese, and the Chinese text is authoritative.
+> The [English README](README.en.md) covers install, usage, tests and known limits. For anything that
+> only lives in this file, open an [issue](https://github.com/BOWLUNA/dsh-multi-instance/issues) and the
+> relevant part will be translated on request.
+
 ## 短版
 
 **把讨论留在问题上。** 这个项目只做一件事：给 `dsh web` 套一层窗口管理器。

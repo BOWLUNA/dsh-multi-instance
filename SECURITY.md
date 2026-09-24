@@ -1,5 +1,10 @@
 # 安全策略
 
+> **English readers:** this document is maintained in Chinese, and the Chinese text is authoritative.
+> The [English README](README.en.md) covers install, usage, tests and known limits. For anything that
+> only lives in this file, open an [issue](https://github.com/BOWLUNA/dsh-multi-instance/issues) and the
+> relevant part will be translated on request.
+
 ## 这个项目会碰到什么
 
 一个桌面套壳，装在本机、连的是你自己的 DSH。它经手的东西里有两类是敏感的：

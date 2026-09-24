@@ -62,6 +62,10 @@
 - `clean:dist` 顺手清掉 `*.__uninstaller.exe` / `*.nsis.7z` / `*.blockmap` 这类每次重造的中间文件
   —— 既避免收尾那行红字，也省下每版约 90MB 的 `nsis.7z` 残留。
 - 中英 README 补上 `npm run smoke` 的说明与「窗口里的东西只有跑起来才看得见」这条口径。
+- `CONTRIBUTING` / `SECURITY` / `CODE_OF_CONDUCT` 三份**只有中文**的文档，顶部各加一段英文指引：
+  明确「以中文为准」，并指向英文 README —— 此前 README 是中英双语而这三份不是，口径不一致，
+  英文读者只能猜。没有仓促机翻三份长文档：说清楚现状比糊一份译文更诚实。
+- `docs/index.html`（Pages 落地页）补上两层测试的说明。
 
 ## [0.4.0] — 2026-09-24
 

@@ -1,5 +1,10 @@
 # 参与开发
 
+> **English readers:** this document is maintained in Chinese, and the Chinese text is authoritative.
+> The [English README](README.en.md) covers install, usage, tests and known limits. For anything that
+> only lives in this file, open an [issue](https://github.com/BOWLUNA/dsh-multi-instance/issues) and the
+> relevant part will be translated on request.
+
 ## 这个项目要什么
 
 一句话：**没有证据的结论等于没结论。**
