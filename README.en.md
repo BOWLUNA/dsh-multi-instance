@@ -95,13 +95,21 @@ From [Releases](https://github.com/BOWLUNA/dsh-multi-instance/releases):
 
 | File | What it is |
 |---|---|
-| `DSH Multi-Instance-Setup-x.y.z.exe` | **Installer** — a normal Windows setup: pick the directory, get Desktop and Start-menu shortcuts |
-| `DSH Multi-Instance-x.y.z-x64.zip` | **Portable zip** — unpack and run, writes no registry keys, fine on a USB stick |
+| `DSH.Multi-Instance-Setup-x.y.z.exe` | **Installer** — a normal Windows setup: pick the directory, get Desktop and Start-menu shortcuts |
+| `DSH.Multi-Instance-x.y.z-x64.zip` | **Portable zip** — unpack and run, writes no registry keys, fine on a USB stick |
+
+> The dots are GitHub's doing: it replaces spaces in uploaded asset names with `.`
+> (the local artifact names use spaces).
 
 > Windows 10/11. dsh itself is not included — after installing, click "Install instance" in the UI,
 > or attach a DSH you already have.
 
 ### Option 2 — npm
+
+> ⚠️ **npm currently only carries `0.0.1`, an empty placeholder** (it exists purely to hold the name —
+> installing it launches nothing). No usable version has been published to npm yet, so until then use
+> Option 1 or Option 3. To check whether you are getting the real package:
+> `npm view dsh-multi-instance version` — today it answers `0.0.1`.
 
 ```bash
 npm i -g dsh-multi-instance   # then run: dsh-multi-instance

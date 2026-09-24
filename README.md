@@ -88,12 +88,19 @@ cookie 互相覆盖、排布全靠手拉。
 
 | 文件 | 说明 |
 |---|---|
-| `DSH Multi-Instance-Setup-x.y.z.exe` | **安装包** —— 常规 Windows 安装程序，可选安装目录、建桌面和开始菜单快捷方式 |
-| `DSH Multi-Instance-x.y.z-x64.zip` | **免安装压缩包** —— 解压即用，不写注册表，适合放 U 盘或便携使用 |
+| `DSH.Multi-Instance-Setup-x.y.z.exe` | **安装包** —— 常规 Windows 安装程序，可选安装目录、建桌面和开始菜单快捷方式 |
+| `DSH.Multi-Instance-x.y.z-x64.zip` | **免安装压缩包** —— 解压即用，不写注册表，适合放 U 盘或便携使用 |
+
+> 文件名里的点是 GitHub 干的：上传时它会把名字里的空格换成 `.`（本地产物名里是空格）。
 
 > 需要 Windows 10/11。软件本身不含 dsh —— 装完在界面里点「下载实例」，或者接你已有的 DSH。
 
 ### 方式二：npm
+
+> ⚠️ **npm 上现在只有 `0.0.1`，那是个占位空壳**（只用来占住包名，装上去不会启动任何东西）。
+> 可用的版本还没发到 npm —— 在那之前请用方式一或方式三。
+> 想确认自己拿到的是不是真包，装之前先跑一句：`npm view dsh-multi-instance version`，
+> 现在它会返回 `0.0.1`。
 
 ```bash
 npm i -g dsh-multi-instance   # 装完用 dsh-multi-instance 启动
