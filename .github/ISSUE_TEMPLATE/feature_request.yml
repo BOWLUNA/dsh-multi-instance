@@ -1,0 +1,35 @@
+name: 功能建议
+description: 想要一个它现在不会做的事
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        这个壳的定位是**给 `dsh web` 套一层窗口管理器** —— 它只消费 dsh 已经提供的页面，
+        不修改 dsh 本体。所以建议可以往两个方向想：
+
+        - **窗口管理方向**（排布、分区、多显示器、快捷键、会话隔离）—— 基本都在范围内
+        - **改 dsh 页面本身**（加按钮、改 UI、加模型）—— 那属于 [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode)
+          或 dsh 本体，不在这里
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你现在卡在哪
+      description: 描述场景，不用先想解决方案
+      placeholder: |
+        我同时开 6 个实例，来回切的时候分不清哪个在跑长任务……
+    validations:
+      required: true
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你希望它怎么做
+      description: 有具体想法就写；没有也行
+
+  - type: textarea
+    id: alternative
+    attributes:
+      label: 你现在怎么绕过去的
+      description: 这一条对判断优先级最有帮助

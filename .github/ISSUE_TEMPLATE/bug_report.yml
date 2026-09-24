@@ -1,0 +1,80 @@
+name: 缺陷报告
+description: 有东西不工作 —— 崩了、卡了、连不上、排布不对
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        先说一句最重要的：**贴日志/截图前请把 token 打掉。**
+
+        `config.json` 与地址栏里的 `?token=...` 属于凭证。上侧工具栏有「打码」开关（`--mask-token`）。
+        日志里如果带了 token，请手动替换成 `token=***`。
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      description: 点界面上左下角的版本号可以看到；底部会显示应用版本与运行环境
+      placeholder: "0.3.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: 怎么装的
+      options:
+        - 安装包（Setup.exe）
+        - 免安装压缩包（zip）
+        - npm（npm i -g dsh-multi-instance）
+        - 从源码跑（npm start / start.vbs）
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: 系统
+      description: Windows 版本；如果用到 WSL，也写上发行版
+      placeholder: "Windows 11 23H2；WSL2 Ubuntu 26.04"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: 出问题的实例是哪种
+      options:
+        - Windows 本机
+        - WSL2
+        - 远程（只有 URL）
+        - 和实例无关（界面 / 排布 / 启动本身）
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: 发生了什么
+      description: 期望是什么、实际是什么。能稳定复现的话，把步骤写出来
+      placeholder: |
+        1. 打开 4 个实例
+        2. 点 1/4 分区
+        3. 其中一个窗格变成了空白
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: 日志
+      description: |
+        应用数据目录下 `logs/main.log` 的结尾几十行（`%APPDATA%\dsh-multi-instance\logs\main.log`）。
+        里面能看到 `userData=`、地址解析结果、每个 webview 的挂载结果、失败原因。
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: 其它
+      description: 截图、录屏、`--memtest` 的输出，或者你已经排除掉的可能

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      # 刻意不跑 npm install：测试套件是零依赖的纯 Node，
+      # 而 electron 是 devDependency（几十 MB 的二进制），装它只会让 CI 变慢、
+      # 而且在无头 runner 上根本用不到。测试要能被这样跑起来，正是它存在的意义。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 跑无头测试套件
+        run: node tests/run.js
+
+      - name: 语法检查（所有源码都能被解析）
+        shell: bash
+        run: |
+          set -e
+          for f in src/main/*.js src/preload/*.js src/renderer/*.js bin/cli.js tests/run.js; do
+            node --check "$f"
+          done
+          echo "语法检查通过"
+
+      - name: 校验 package.json 与 CHANGELOG 的版本号一致
+        shell: bash
+        run: |
+          set -e
+          PKG=$(node -p "require('./package.json').version")
+          echo "package.json version = $PKG"
+          grep -q "^## \[$PKG\]" CHANGELOG.md || {
+            echo "::error::CHANGELOG.md 里没有 ## [$PKG] 这一节"
+            exit 1
+          }
+          echo "版本号一致"

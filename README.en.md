@@ -27,6 +27,23 @@ DeepSeek Harness GUI · DeepSeek Harness desktop · dsh GUI · dsh client · dsh
 
 ---
 
+## Contents
+
+- [What it solves](#what-it-solves)
+- [What it does not do](#what-it-does-not-do)
+- [Install](#install) (build / npm / source)
+- [Quick start](#quick-start)
+- [Attaching an instance](#attaching-an-instance) (incl. [auto-discovery](#auto-discovery), [manual install](#manual-install))
+- [Panes and layout](#panes-and-layout) · [Session isolation](#session-isolation)
+- [Using it](#using-it) (drawers, interface, shortcuts)
+- [Running from source](#running-from-source) · [Testing](#testing) · [Building from source](#building-from-source) · [Debug switches](#debug-switches)
+- [Where files live](#where-files-live)
+- [Troubleshooting](#troubleshooting)
+- [Known limitations](#known-limitations)
+- [Related projects](#related-projects) · [Contributing](#contributing) · [Changelog](CHANGELOG.md) · [License](#license)
+
+---
+
 ## What it solves
 
 The web UI that ships with dsh is good, but it shows one place in one window. The moment you need to watch
@@ -296,6 +313,20 @@ Launch (pick one):
 | Double-click | `start.cmd` | A cmd window flashes for a moment |
 | Terminal | `./start.sh` | For development; logs also go to the terminal |
 
+### Testing
+
+```bash
+npm test              # plain Node — no GUI, no Electron required
+```
+
+Covers the **pure logic**: user-data location and migration, instance address resolution, and the npm
+entry point's runtime lookup. Window behaviour and renderer interaction still need `--selftest*`, which
+require a real window.
+
+> Why the split: the `--selftest*` switches need a real window, so in a headless environment (CI, SSH,
+> container) not one of them can run — which left "did I break something?" to the naked eye. This project
+> lost exactly one defect that way: **user config silently dropped** across a rename.
+
 ### Building from source
 
 ```bash
@@ -306,9 +337,12 @@ npm run dist:zip      # portable zip only
 
 Artifacts land in `dist/`.
 
-> ⚠️ **Keep the build path free of non-ASCII characters** — electron-builder tends to trip on them.
-> This repository's development directory happens to contain Chinese characters, so builds were done in a
-> pure-ASCII temporary path.
+> Measured with electron-builder 26.15.3: **a path containing non-ASCII characters builds fine** — this
+> repository's own development directory contains Chinese characters, and both artifacts above were built
+> in place. No need to move to an ASCII temporary path.
+>
+> electron-builder may print a delete failure while cleaning up `dist/win-unpacked`. That is the cleanup
+> step — **the artifacts are already produced** and the message can be ignored.
 
 ### Debug switches
 
@@ -337,9 +371,22 @@ Artifacts land in `dist/`.
 | Content | Path |
 | --- | --- |
 | User config (instance list, pane arrangement) | `config.json` in the app data directory |
+| Per-pane login state (browser partitions) | `Partitions/` in the app data directory |
 | Main-process log | `logs/main.log` in the app data directory |
 
-On Windows the app data directory is `%APPDATA%\dsh-multi-instance\`.
+On Windows the app data directory is `%APPDATA%\dsh-multi-instance\` — **the same location for dev runs and
+packaged builds**.
+
+> **The location is pinned, not derived.** Electron would default it to `<appData>/<app name>`, where the
+> name comes from `package.json`'s `name` in development and from `productName` when packaged — leave it
+> derived and you get two separate directories: the layout you arranged in source is empty for a packaged
+> user.
+>
+> This project has been renamed three times (`dsh-shell` → `dsh-webview-desktop` → `dsh-multi-instance`),
+> so startup performs **a one-time migration**: if the current directory has no panes, it looks through the
+> legacy directories (`DSH Multi-Instance` / `dsh-webview-desktop` / `dsh-shell` / `DSH套壳`) and adopts the
+> `config.json` with the most panes, together with its `Partitions/`. It only acts when the current
+> directory has no panes, so it runs at most once. The log records what was migrated and from where.
 
 The app does **not** modify the address file dsh's launcher writes, and does **not** touch dsh's own
 credential files.
@@ -381,6 +428,19 @@ tail -f "<app data directory>/logs/main.log"
 It records the address resolution, each webview's mount and load result, the directory count and time of a
 discovery scan, and the reasons for failures.
 
+**After upgrading, my instance list is empty / the layout went back to default**
+From 0.3.0 the location is pinned to `%APPDATA%\dsh-multi-instance\` and startup adopts config from legacy
+directories automatically. Look for this line in the log:
+
+```
+[appdata] 已从 <legacy dir> 迁移: config.json, Partitions（窗格 N 个）
+```
+
+If that line is absent and the legacy directory does exist, the legacy directory had no panes either — copy
+its `config.json` into `%APPDATA%\dsh-multi-instance\` by hand (with the app closed).
+(0.2.0 and earlier had a drifting location: dev runs and packaged builds wrote to different directories. The
+`userData=` log line is the authoritative answer.)
+
 ---
 
 ## Known limitations
@@ -412,11 +472,13 @@ discovery scan, and the reasons for failures.
 ├── bin/cli.js                           npm entry point (finds electron and launches the app)
 ├── build/icon.ico                       app icon
 ├── start.cmd / start.vbs / start.sh     launchers (pick one)
+├── tests/run.js                         plain-Node test suite (npm test)
 ├── tools/screenshots/shoot.js           batch screenshot tool for README images
 ├── docs/images/                         screenshots used by the READMEs
 └── src/
     ├── main/
     │   ├── main.js        main process: window, webview hardening, IPC, selftest probes
+    │   ├── appdata.js     user-data location (pinned) + legacy-directory migration
     │   ├── instances.js   instance model: address resolution, start/stop, reachability probe
     │   ├── discovery.js   discovery: process/port scan + dsh executable scan + common-dir scan
     │   ├── installer.js   manual installer (dsh is never bundled)
@@ -433,10 +495,31 @@ discovery scan, and the reasons for failures.
 
 ---
 
+## Related projects
+
+| Project | What it is |
+| --- | --- |
+| [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode) | By the same author: a DSH plugin to **manage, switch and share system prompt sets**. Runs inside DSH; complements this shell |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | Upstream. This project only consumes its web UI and never modifies it |
+
+## Contributing
+
+| | |
+| --- | --- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to get it running, what to test after a change, and the three invariants not to touch |
+| [SECURITY.md](SECURITY.md) | Which sensitive data it handles; report problems privately |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each version |
+| [Issues](https://github.com/BOWLUNA/dsh-multi-instance/issues) | Bugs and suggestions (forms ask for your version and log) |
+| [Discussions](https://github.com/BOWLUNA/dsh-multi-instance/discussions) | Usage, layout ideas, which server to attach |
+
 ## Relationship to DeepSeek Harness
 
 This is an **independent third-party shell**, not affiliated with DeepSeek. It only consumes the web UI dsh
 already exposes, does not modify dsh itself, and does not represent the official position.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

@@ -20,6 +20,24 @@ const Store = require('./store');
 const inst = require('./instances');
 const discovery = require('./discovery');
 const installer = require('./installer');
+const appdata = require('./appdata');
+
+// ---------------------------------------------------------------- 用户数据落点
+
+/**
+ * ★ 必须在**任何** `app.getPath('userData')` 之前钉死落点。
+ *
+ * Electron 默认把它算成 `<appData>/<app.getName()>`，而 `getName()` 在开发态取
+ * `package.json` 的 `name`、在打包态取 electron-builder 的 `productName` ——
+ * 不钉死就是两套目录：开发时排好的布局，打包版用户看不到；反之亦然。
+ *
+ * 同时做一次旧目录迁移（这个项目改过三次名字），把实例列表、窗格排布和
+ * 持久化的登录态接过来，而不是留在原地。
+ */
+const APPDATA_BOOT = appdata.bootstrap({
+  logger: (m) => console.log(m),
+});
+app.setPath('userData', APPDATA_BOOT.userData);
 
 // ---------------------------------------------------------------- 参数
 
@@ -872,5 +890,13 @@ if (!gotLock) {
     createWindow();
     log(`应用启动 electron=${process.versions.electron} chrome=${process.versions.chrome}`);
     log(`userData=${app.getPath('userData')}`);
+    log(
+      `appdata: 落点已钉死=${APPDATA_BOOT.userData === app.getPath('userData')} ` +
+        `迁移=${APPDATA_BOOT.result.action}${
+          APPDATA_BOOT.result.copied && APPDATA_BOOT.result.copied.length
+            ? ` (${APPDATA_BOOT.result.copied.join(', ')} ← ${APPDATA_BOOT.plan.fromName})`
+            : ''
+        }`
+    );
   });
 }

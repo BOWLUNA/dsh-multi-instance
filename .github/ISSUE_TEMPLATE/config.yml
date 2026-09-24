@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 先看排障与已知限制
+    url: https://github.com/BOWLUNA/dsh-multi-instance#排障
+    about: 「401 / 连不上 / 平铺糊成一团 / 实例列表空了」在 README 里都有对应条目
+  - name: 讨论（不一定要开 issue）
+    url: https://github.com/BOWLUNA/dsh-multi-instance/discussions
+    about: 用法交流、排布方案、接哪台服务器 —— 都可以在这里聊

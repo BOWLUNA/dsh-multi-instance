@@ -24,6 +24,23 @@ DeepSeek Harness GUI · DSH GUI · dsh 图形界面 · dsh 桌面版
 
 ---
 
+## 目录
+
+- [它解决什么](#它解决什么)
+- [它不做什么](#它不做什么)
+- [安装](#安装)（安装包 / npm / 源码）
+- [快速上手](#快速上手)
+- [接入一处 DSH](#接入一处-dsh)（含[自动发现](#自动发现)、[手动安装](#手动安装)）
+- [多窗格与排布](#多窗格与排布) · [会话隔离](#会话隔离)
+- [操作](#操作)（隐藏抽屉、界面、快捷键）
+- [从源码运行](#从源码运行) · [测试](#测试) · [从源码打包](#从源码打包) · [调试开关](#调试开关)
+- [文件位置](#文件位置)
+- [排障](#排障)
+- [已知限制](#已知限制)
+- [相关项目](#相关项目) · [参与贡献](#参与贡献) · [更新日志](CHANGELOG.md) · [许可](#许可)
+
+---
+
 ## 它解决什么
 
 dsh 自带的 Web 界面很好用，但一次只能看一处、一个窗口。当你需要同时盯着**本机 WSL 里的一处**和
@@ -268,6 +285,18 @@ npm install          # 只装 electron 与 electron-builder
 | 双击 | `start.cmd` | 会出现一瞬间 cmd 窗口 |
 | 命令行 | `./start.sh` | 开发用，日志同时打到终端 |
 
+### 测试
+
+```bash
+npm test              # 纯 Node，不需要图形界面、不需要 Electron
+```
+
+覆盖的是**纯逻辑**：用户数据落点与迁移、实例地址解析、npm 入口的运行时查找。
+窗口行为、渲染层交互那些仍然只能靠 `--selftest*`（它们要起真窗口，没 GUI 就跑不了）。
+
+> 为什么要分开：`--selftest*` 在没有图形界面的环境（CI、SSH、容器）里一条都跑不了，
+> 于是「改完有没有改坏」只能靠肉眼 —— 这个项目就是因此漏过一次**用户配置被静默丢弃**的缺陷。
+
 ### 从源码打包
 
 ```bash
@@ -278,8 +307,11 @@ npm run dist:zip      # 只出 zip
 
 产物在 `dist/`。
 
-> ⚠️ **构建路径不要含中文** —— electron-builder 在中文路径下容易出问题。
-> 本仓库的开发目录恰好含中文，所以打包时是在一个纯英文临时路径下做的。
+> 实测（electron-builder 26.15.3）：**含中文的路径下也能正常打包** —— 本仓库的开发目录就含中文，
+> 上面两种产物都是在原地打出来的，不需要挪到英文临时目录。
+>
+> electron-builder 收尾清理 `dist/win-unpacked` 时可能报一句删除失败 —— 那是清理步骤，**产物已经生成**，
+> 可以忽略。
 
 ### 调试开关
 
@@ -308,9 +340,20 @@ npm run dist:zip      # 只出 zip
 | 内容 | 路径 |
 | --- | --- |
 | 用户配置（实例列表、窗格排布） | 应用数据目录下的 `config.json` |
+| 每个窗格的登录态（浏览器分区） | 应用数据目录下的 `Partitions/` |
 | 主进程日志 | 应用数据目录下的 `logs/main.log` |
 
-应用数据目录在 Windows 上是 `%APPDATA%\dsh-multi-instance\`。
+应用数据目录在 Windows 上是 `%APPDATA%\dsh-multi-instance\`（开发态与打包版**同一个位置**）。
+
+> **落点是钉死的，不是自动推导的。** Electron 默认把它算成 `<appData>/<应用名>`，
+> 而应用名在开发态取 `package.json` 的 `name`、在打包态取 `productName` ——
+> 不钉死就会变成两套目录：你在源码里排好的布局，打包版用户打开是空的。
+>
+> 这个项目改过三次名字（`dsh-shell` → `dsh-webview-desktop` → `dsh-multi-instance`），
+> 所以启动时会**自动做一次迁移**：若当前目录里没有窗格，就去旧目录里找
+> （`DSH Multi-Instance` / `dsh-webview-desktop` / `dsh-shell` / `DSH套壳`），
+> 把窗格最多的那一份 `config.json` 连同 `Partitions/` 一起接过来。
+> 只在**当前目录没有窗格**时才动手，跑过一次之后就不会再动。日志里会写明迁移了什么、从哪来。
 
 应用**不会**修改 dsh 启动器写出的地址文件，也**不会**碰 dsh 自己的凭证文件。
 
@@ -347,6 +390,18 @@ tail -f "<应用数据目录>/logs/main.log"
 ```
 里面记录了：地址解析结果、每个 webview 的挂载与加载结果、发现扫描的目录数与耗时、失败原因。
 
+**升级后实例列表空了 / 排布回到默认了**
+0.3.0 起落点已钉死为 `%APPDATA%\dsh-multi-instance\`，并会在启动时从旧目录自动接回配置。
+看日志里有没有这一行：
+
+```
+[appdata] 已从 <旧目录名> 迁移: config.json, Partitions（窗格 N 个）
+```
+
+没有这行、而旧目录确实存在，说明旧目录里也没有窗格 —— 那就手动把旧目录的 `config.json`
+复制到 `%APPDATA%\dsh-multi-instance\` 下面（先关掉应用）。
+（0.2.0 及更早版本存在落点漂移：开发态与打包版会写到不同目录。日志里 `userData=` 那行是权威答案。）
+
 ---
 
 ## 已知限制
@@ -372,11 +427,13 @@ tail -f "<应用数据目录>/logs/main.log"
 ├── bin/cli.js                           npm 包的可执行入口（找 electron 并拉起应用）
 ├── build/icon.ico                       应用图标
 ├── start.cmd / start.vbs / start.sh     启动器（三选一）
+├── tests/run.js                         纯 Node 测试套件（npm test）
 ├── tools/screenshots/shoot.js           批量拍 README 截图
 ├── docs/images/                         README 用的截图
 └── src/
     ├── main/
     │   ├── main.js        主进程：窗口、webview 加固、IPC、自测打点
+    │   ├── appdata.js     用户数据落点（钉死）+ 旧目录迁移
     │   ├── instances.js   实例模型：地址解析、起停、可达性探测
     │   ├── discovery.js   自动发现：扫进程/端口 + 扫 dsh 可执行文件 + 扫常见目录
     │   ├── installer.js   手动安装器（不捆绑 dsh）
@@ -393,10 +450,31 @@ tail -f "<应用数据目录>/logs/main.log"
 
 ---
 
+## 相关项目
+
+| 项目 | 是什么 |
+| --- | --- |
+| [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode) | 同作者的 DSH 插件：一套系统提示词的**管理、切换与分享**。装在 DSH 里用，与这个壳互补 |
+| [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) | 上游。本项目只消费它的 Web 界面，不修改本体 |
+
+## 参与贡献
+
+| | |
+| --- | --- |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | 怎么跑起来、改完该测什么、三条不要动的不变式 |
+| [SECURITY.md](SECURITY.md) | 它经手哪些敏感数据；发现了问题走私密通道报 |
+| [CHANGELOG.md](CHANGELOG.md) | 每个版本改了什么 |
+| [Issues](https://github.com/BOWLUNA/dsh-multi-instance/issues) | 缺陷与建议（有表单，会顺便问你版本和日志） |
+| [Discussions](https://github.com/BOWLUNA/dsh-multi-instance/discussions) | 用法交流、排布方案、接哪台服务器 |
+
 ## 与 DeepSeek Harness 的关系
 
 本项目是**独立的第三方外壳**，与 DeepSeek 官方无隶属关系。它只消费 dsh 已经对外提供的 Web 界面，
 不修改 dsh 本体，也不代表官方立场。
+
+## 更新日志
+
+见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可
 
