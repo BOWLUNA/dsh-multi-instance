@@ -150,8 +150,8 @@
     "asar": true
   },
   "devDependencies": {
-    "electron": "44.4.3",
-    "electron-builder": "^26.15.3"
+    "electron": "45.0.0",
+    "electron-builder": "^26.18.0"
   },
   "engines": {
     "node": ">=18"
